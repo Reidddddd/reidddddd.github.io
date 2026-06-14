@@ -1,4 +1,5 @@
-const MAX = 3, MIN = 2;
+const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
+  const MAX = 3, MIN = 2;
   let selected = [];
   let castMode = 'numbers';
   let customCast = {shang: 1, xia: 1, dong: 1};
@@ -18,7 +19,7 @@ const MAX = 3, MIN = 2;
     resultPlaceholder: $('resultPlaceholder'), resultContent: $('resultContent'),
     resultStatus: $('resultStatus'), resultTools: $('resultTools'), btnYiLi: $('btnYiLi'),
     statusText: $('statusText'), statusDetail: $('statusDetail'),
-    rightCol: document.querySelector('.right-col'), lunarPanel: document.querySelector('.lunar-panel'),
+    rightCol: document.querySelector('.right-col'), lunarPanel: $('lunarPanel'),
     modeButtons: Array.from(document.querySelectorAll('[data-cast-mode]')),
     numberCastPanel: $('numberCastPanel'), lunarCastPanel: $('lunarCastPanel'),
     customCastPanel: $('customCastPanel'),
@@ -30,7 +31,12 @@ const MAX = 3, MIN = 2;
     lunarDongFormula: $('lunarDongFormula'),
   };
   let hexReady = false;
-  const LUNAR_CAST = JSON.parse(document.getElementById('lunar-cast-data')?.textContent || 'null');
+  let LUNAR_CAST = null;
+
+  fetch(`${API_BASE}/api/lunar-data`)
+    .then(r => r.json())
+    .then(data => { LUNAR_CAST = data.lunar_cast; renderLunarPanel(data); refresh(); })
+    .catch(() => { LUNAR_CAST = null; refresh(); });
   const JING_GUA = [
     {shu: 1, ming: '乾卦', xiang: '☰', wuXingClass: 'wu-xing-jin'},
     {shu: 2, ming: '兑卦', xiang: '☱', wuXingClass: 'wu-xing-jin'},
@@ -181,6 +187,32 @@ const MAX = 3, MIN = 2;
     });
   }
 
+  function renderLunarPanel(data) {
+    const cols = dom.lunarPanel.querySelectorAll('.lunar-col');
+    if (data.nong_li) {
+      cols[0].querySelector('.lunar-top').textContent = data.nong_li.yue;
+      cols[0].querySelector('.lunar-top').className = `lunar-top ${data.nong_li.yue_wu_xing_class}`;
+      cols[0].querySelector('.lunar-bottom').textContent = data.nong_li.ri;
+      cols[0].querySelector('.lunar-bottom').className = `lunar-bottom ${data.nong_li.ri_wu_xing_class}`;
+    }
+    if (data.jie_qi) {
+      cols[1].querySelector('.lunar-top').textContent = data.jie_qi.shang || '--';
+      cols[1].querySelector('.lunar-top').className = `lunar-top ${data.jie_qi.wu_xing_class || ''}`;
+      cols[1].querySelector('.lunar-bottom').textContent = data.jie_qi.xia || '--';
+      cols[1].querySelector('.lunar-bottom').className = `lunar-bottom ${data.jie_qi.wu_xing_class || ''}`;
+    }
+    if (data.gan_zhi) {
+      data.gan_zhi.forEach((item, i) => {
+        if (cols[i + 2]) {
+          cols[i + 2].querySelector('.lunar-top').textContent = item.tian_gan;
+          cols[i + 2].querySelector('.lunar-top').className = `lunar-top ${item.yin_class} ${item.tian_gan_wu_xing_class}`;
+          cols[i + 2].querySelector('.lunar-bottom').textContent = item.di_zhi;
+          cols[i + 2].querySelector('.lunar-bottom').className = `lunar-bottom ${item.yin_class} ${item.di_zhi_wu_xing_class}`;
+        }
+      });
+    }
+  }
+
   function updateLunarCastPanel() {
     if (!LUNAR_CAST) {
       dom.lunarCastPanel.classList.add('is-error');
@@ -246,7 +278,7 @@ const MAX = 3, MIN = 2;
     hexReady = false;
 
     try {
-      const resp = await fetch('/api/qi-gua', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: apiBody()});
+      const resp = await fetch(`${API_BASE}/api/qi-gua`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: apiBody()});
       for await (const sse_event of streamSSE(resp.body.getReader())) handleQiGua(sse_event.event, sse_event.data);
     } catch (error) {
       dom.statusText.textContent = '连接出错'; dom.statusDetail.textContent = error.message;
@@ -284,7 +316,7 @@ const MAX = 3, MIN = 2;
     dom.btnJieGua.disabled = true;
 
     try {
-      const resp = await fetch('/api/jie-gua', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: apiBody()});
+      const resp = await fetch(`${API_BASE}/api/jie-gua`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: apiBody()});
       for await (const sse_event of streamSSE(resp.body.getReader())) handleJieGua(sse_event.event, sse_event.data);
     } catch (error) {
       dom.statusText.textContent = '连接出错'; dom.statusDetail.textContent = error.message;

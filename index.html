@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>梅花易数</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
 <div class="bg-temple">
@@ -104,21 +104,13 @@
         </div>
       </section>
 
-      <section class="card card-padded lunar-panel">
-        <div class="lunar-col">
-          <div class="lunar-top {{ lunar.nong_li.yue_wu_xing_class }}">{{ lunar.nong_li.yue }}</div>
-          <div class="lunar-bottom {{ lunar.nong_li.ri_wu_xing_class }}">{{ lunar.nong_li.ri }}</div>
-        </div>
-        <div class="lunar-col">
-          <div class="lunar-top {{ lunar.jie_qi.wu_xing_class }}">{{ lunar.jie_qi.shang }}</div>
-          <div class="lunar-bottom {{ lunar.jie_qi.wu_xing_class }}">{{ lunar.jie_qi.xia }}</div>
-        </div>
-        {% for item in lunar.gan_zhi %}
-        <div class="lunar-col">
-          <div class="lunar-top {{ item.yin_class }} {{ item.tian_gan_wu_xing_class }}">{{ item.tian_gan }}</div>
-          <div class="lunar-bottom {{ item.yin_class }} {{ item.di_zhi_wu_xing_class }}">{{ item.di_zhi }}</div>
-        </div>
-        {% endfor %}
+      <section class="card card-padded lunar-panel" id="lunarPanel">
+        <div class="lunar-col"><div class="lunar-top">--</div><div class="lunar-bottom">--</div></div>
+        <div class="lunar-col"><div class="lunar-top">--</div><div class="lunar-bottom">--</div></div>
+        <div class="lunar-col"><div class="lunar-top">--</div><div class="lunar-bottom">--</div></div>
+        <div class="lunar-col"><div class="lunar-top">--</div><div class="lunar-bottom">--</div></div>
+        <div class="lunar-col"><div class="lunar-top">--</div><div class="lunar-bottom">--</div></div>
+        <div class="lunar-col"><div class="lunar-top">--</div><div class="lunar-bottom">--</div></div>
       </section>
     </div>
 
@@ -146,7 +138,6 @@
   </div>
 </div>
 
-<script id="lunar-cast-data" type="application/json">{{ lunar.lunar_cast | tojson }}</script>
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="app.js"></script>
 </body>
 </html>
