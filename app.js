@@ -33,7 +33,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   let hexReady = false;
   let LUNAR_CAST = null;
 
-  fetch(`${API_BASE}/api/lunar-data`)
+  fetch(`${API_BASE}/api/lunar-data`, {headers: {'ngrok-skip-browser-warning': '1'}})
     .then(r => r.json())
     .then(data => { LUNAR_CAST = data.lunar_cast; renderLunarPanel(data); refresh(); })
     .catch(() => { LUNAR_CAST = null; refresh(); });
@@ -278,7 +278,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     hexReady = false;
 
     try {
-      const resp = await fetch(`${API_BASE}/api/qi-gua`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: apiBody()});
+      const resp = await fetch(`${API_BASE}/api/qi-gua`, {method: 'POST', headers: {'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1'}, body: apiBody()});
       for await (const sse_event of streamSSE(resp.body.getReader())) handleQiGua(sse_event.event, sse_event.data);
     } catch (error) {
       dom.statusText.textContent = '连接出错'; dom.statusDetail.textContent = error.message;
@@ -316,7 +316,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.btnJieGua.disabled = true;
 
     try {
-      const resp = await fetch(`${API_BASE}/api/jie-gua`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: apiBody()});
+      const resp = await fetch(`${API_BASE}/api/jie-gua`, {method: 'POST', headers: {'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1'}, body: apiBody()});
       for await (const sse_event of streamSSE(resp.body.getReader())) handleJieGua(sse_event.event, sse_event.data);
     } catch (error) {
       dom.statusText.textContent = '连接出错'; dom.statusDetail.textContent = error.message;
