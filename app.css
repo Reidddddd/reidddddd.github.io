@@ -24,8 +24,9 @@
     font-family: "PingFang SC", "Noto Serif SC", "Source Han Serif SC", "Hiragino Mincho Pro", "Songti SC", serif;
     background:
       radial-gradient(ellipse at 50% 30%, #faf6ec 0%, #efe8d6 60%, #e0d8c0 100%);
-    color: var(--text); min-height: 100vh; padding: 0.8rem;
+    color: var(--text); min-height: 100vh; min-height: 100dvh; padding: 0.8rem;
     overflow-x: hidden; overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .bg-temple { position: fixed; inset: 0; pointer-events: none; z-index: 0; font-variant-emoji: text; }
@@ -308,7 +309,7 @@
   .result-content code { background: var(--tile-bg); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.86rem; }
 
   @media (max-width: 860px) {
-    .main-row { flex-direction: column; }
+    .main-row { flex-direction: column; overflow: visible; }
     .left-col { flex: none; width: 100%; }
     .right-col { flex: none; width: 100%; height: auto !important; overflow: visible; }
     .result-section { flex: none; min-height: 18rem; max-height: none; overflow: visible; }
