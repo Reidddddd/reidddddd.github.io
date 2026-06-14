@@ -310,8 +310,8 @@
   @media (max-width: 860px) {
     .main-row { flex-direction: column; }
     .left-col { flex: none; width: 100%; }
-    .right-col { width: 100%; height: auto !important; overflow: visible; }
-    .result-section { min-height: 18rem; max-height: none; overflow: visible; }
+    .right-col { flex: none; width: 100%; height: auto !important; overflow: visible; }
+    .result-section { flex: none; min-height: 18rem; max-height: none; overflow: visible; }
     .result-content { flex: none; max-height: none; overflow: visible; padding-right: 0; }
     .hex-cols { gap: 3px; }
     .hex-col { min-width: 55px; padding: 0.3rem 0.2rem; }
