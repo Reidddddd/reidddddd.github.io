@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>梅花易数</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+<div class="bg-temple">
+  <div class="tai-ji"></div>
+  <span class="gua gua-n">☰︎</span>
+  <span class="gua gua-nw">☱︎</span>
+  <span class="gua gua-w">☲︎</span>
+  <span class="gua gua-sw">☳︎</span>
+  <span class="gua gua-s">☷︎</span>
+  <span class="gua gua-se">☶︎</span>
+  <span class="gua gua-e">☵︎</span>
+  <span class="gua gua-ne">☴︎</span>
+</div>
+<div class="container">
+  <header class="header"><h1>梅花易数</h1><p>谋事在人，成事在天</p></header>
+
+  <div class="main-row">
+    <div class="left-col">
+      <section class="card card-padded input-section">
+        <div class="input-group">
+          <label for="question">所问何事</label>
+          <input type="text" id="question" placeholder="输入你所问的事情……" maxlength="200">
+        </div>
+        <div class="input-group">
+          <label for="waiying">外应（选填）</label>
+          <input type="text" id="waiying" placeholder="起卦时周围的特殊现象，无则留空……">
+        </div>
+      </section>
+
+      <section class="card card-padded grid-section">
+        <div class="cast-section">
+          <div class="cast-title-row">
+            <h2>起卦</h2>
+            <div class="cast-switch" role="group" aria-label="起卦方式">
+              <button type="button" class="cast-switch-btn active" data-cast-mode="numbers">随机数</button>
+              <button type="button" class="cast-switch-btn" data-cast-mode="lunar">农历时</button>
+              <button type="button" class="cast-switch-btn" data-cast-mode="custom">自定义</button>
+            </div>
+          </div>
+          <div class="cast-summary">
+            <label id="castSummaryLabel">
+              <span id="castSummaryLine1">大衍之数五十，其用四十有九</span>
+              <span id="castSummaryLine2">随心取数二三，以观其象所成</span>
+            </label>
+            <div class="selected-nums" id="selectedNums"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="btnQiGua" disabled>起卦</button>
+            <button class="btn btn-primary" id="btnJieGua" style="display:none" disabled>解卦</button>
+            <button class="btn btn-secondary" id="btnReset">重选</button>
+          </div>
+        </div>
+
+        <div class="mode-panel" id="numberCastPanel">
+          <div class="number-grid" id="numberGrid"></div>
+        </div>
+
+        <div class="mode-panel lunar-cast-panel" id="lunarCastPanel" hidden>
+          <div class="lunar-cast-source">
+            <span>当前农历</span>
+            <strong id="lunarCastSource"></strong>
+          </div>
+          <div class="lunar-cast-grid">
+            <div class="lunar-cast-item">
+              <span>上卦</span>
+              <strong id="lunarShang"></strong>
+              <em id="lunarShangFormula"></em>
+            </div>
+            <div class="lunar-cast-item">
+              <span>下卦</span>
+              <strong id="lunarXia"></strong>
+              <em id="lunarXiaFormula"></em>
+            </div>
+            <div class="lunar-cast-item">
+              <span>动爻</span>
+              <strong id="lunarDong"></strong>
+              <em id="lunarDongFormula"></em>
+            </div>
+          </div>
+          <div class="lunar-cast-note">按年支数、农历月日、时支数合参。</div>
+          <div class="lunar-cast-error" id="lunarCastError"></div>
+        </div>
+
+        <div class="mode-panel custom-cast-panel" id="customCastPanel" hidden>
+          <div class="custom-cast-group">
+            <div class="custom-cast-title">上卦</div>
+            <div class="custom-gua-grid" id="customShangOptions"></div>
+          </div>
+          <div class="custom-cast-group">
+            <div class="custom-cast-title">下卦</div>
+            <div class="custom-gua-grid" id="customXiaOptions"></div>
+          </div>
+          <div class="custom-cast-group">
+            <div class="custom-cast-title">动爻</div>
+            <div class="custom-yao-grid" id="customDongOptions"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card card-padded lunar-panel">
+        <div class="lunar-col">
+          <div class="lunar-top {{ lunar.nong_li.yue_wu_xing_class }}">{{ lunar.nong_li.yue }}</div>
+          <div class="lunar-bottom {{ lunar.nong_li.ri_wu_xing_class }}">{{ lunar.nong_li.ri }}</div>
+        </div>
+        <div class="lunar-col">
+          <div class="lunar-top {{ lunar.jie_qi.wu_xing_class }}">{{ lunar.jie_qi.shang }}</div>
+          <div class="lunar-bottom {{ lunar.jie_qi.wu_xing_class }}">{{ lunar.jie_qi.xia }}</div>
+        </div>
+        {% for item in lunar.gan_zhi %}
+        <div class="lunar-col">
+          <div class="lunar-top {{ item.yin_class }} {{ item.tian_gan_wu_xing_class }}">{{ item.tian_gan }}</div>
+          <div class="lunar-bottom {{ item.yin_class }} {{ item.di_zhi_wu_xing_class }}">{{ item.di_zhi }}</div>
+        </div>
+        {% endfor %}
+      </section>
+    </div>
+
+    <div class="right-col">
+      <section class="card card-padded hex-section">
+        <h2>卦象</h2>
+        <div class="placeholder" id="hexPlaceholder">取数起卦后，卦象显示于此</div>
+        <div class="hex-cols" id="hexCols" style="display:none"></div>
+      </section>
+
+      <section class="card card-padded result-section">
+        <h2>解卦</h2>
+        <div class="result-status" id="resultStatus" style="display:none">
+          <div class="spinner-sm active"></div>
+          <span class="status-text" id="statusText"></span>
+          <span class="status-detail" id="statusDetail"></span>
+        </div>
+        <div class="result-tools" id="resultTools" style="display:none">
+          <button class="btn btn-secondary" id="btnYiLi">易理</button>
+        </div>
+        <div class="placeholder" id="resultPlaceholder">取数起卦后，解卦结果显示于此</div>
+        <div class="result-content" id="resultContent" style="display:none"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script id="lunar-cast-data" type="application/json">{{ lunar.lunar_cast | tojson }}</script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
