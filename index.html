@@ -40,6 +40,7 @@
             <h2>起卦</h2>
             <div class="cast-switch" role="group" aria-label="起卦方式">
               <button type="button" class="cast-switch-btn active" data-cast-mode="numbers">自选数</button>
+              <button type="button" class="cast-switch-btn" data-cast-mode="random">天选数</button>
               <button type="button" class="cast-switch-btn" data-cast-mode="lunar">农历时</button>
               <button type="button" class="cast-switch-btn" data-cast-mode="custom">自定义</button>
             </div>
@@ -60,6 +61,11 @@
 
         <div class="mode-panel" id="numberCastPanel">
           <div class="number-grid" id="numberGrid"></div>
+        </div>
+
+        <div class="mode-panel" id="randomCastPanel" hidden>
+          <div class="random-number-grid" id="randomNumberGrid" aria-live="polite"></div>
+          <span id="randomNumber" hidden></span>
         </div>
 
         <div class="mode-panel lunar-cast-panel" id="lunarCastPanel" hidden>

@@ -21,8 +21,9 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     statusText: $('statusText'), statusDetail: $('statusDetail'),
     leftCol: document.querySelector('.left-col'), rightCol: document.querySelector('.right-col'), lunarPanel: $('lunarPanel'),
     modeButtons: Array.from(document.querySelectorAll('[data-cast-mode]')),
-    numberCastPanel: $('numberCastPanel'), lunarCastPanel: $('lunarCastPanel'),
-    customCastPanel: $('customCastPanel'),
+    numberCastPanel: $('numberCastPanel'), randomCastPanel: $('randomCastPanel'),
+    lunarCastPanel: $('lunarCastPanel'), customCastPanel: $('customCastPanel'),
+    randomNumberGrid: $('randomNumberGrid'), randomNumber: $('randomNumber'),
     customShangOptions: $('customShangOptions'), customXiaOptions: $('customXiaOptions'),
     customDongOptions: $('customDongOptions'),
     lunarCastSource: $('lunarCastSource'), lunarCastError: $('lunarCastError'),
@@ -31,6 +32,10 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     lunarDongFormula: $('lunarDongFormula'),
   };
   let hexReady = false;
+  let randomCasting = false;
+  let randomPicked = [];
+  let randomTimer = null;
+  let randomTiles = [];
   let LUNAR_CAST = null;
 
   fetch(`${API_BASE}/api/lunar-data`, {headers: {'ngrok-skip-browser-warning': '1'}})
@@ -67,6 +72,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     });
     dom.grid.appendChild(tile);
   }
+  renderRandomNumberGrid();
   renderCustomCastOptions();
 
   function refresh() {
@@ -75,6 +81,10 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       dom.castSummaryLine1.textContent = '年月日时，合数成卦';
       dom.castSummaryLine2.textContent = '';
       dom.selectedNums.textContent = lunarCast ? lunarCast.numbers.join(' ') : '';
+    } else if (castMode === 'random') {
+      dom.castSummaryLine1.textContent = '天运自转，数由天定';
+      dom.castSummaryLine2.textContent = '三数既得，象从此生';
+      dom.selectedNums.textContent = randomPicked.join(' ');
     } else if (castMode === 'custom') {
       dom.castSummaryLine1.textContent = '自取上下卦，指定动爻';
       dom.castSummaryLine2.textContent = '';
@@ -86,8 +96,14 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     }
     const valid = canCast();
     if (!hexReady) {
-      dom.btnQiGua.disabled = !valid;
-      dom.btnJieGua.style.display = 'none';
+      if (randomCasting) {
+        dom.btnQiGua.disabled = true;
+        dom.btnJieGua.style.display = '';
+        dom.btnJieGua.disabled = true;
+      } else {
+        dom.btnQiGua.disabled = !valid;
+        dom.btnJieGua.style.display = 'none';
+      }
     }
     requestAnimationFrame(syncRightColumnHeight);
   }
@@ -97,6 +113,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     castMode = mode;
     dom.modeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.castMode === mode));
     dom.numberCastPanel.hidden = mode !== 'numbers';
+    dom.randomCastPanel.hidden = mode !== 'random';
     dom.lunarCastPanel.hidden = mode !== 'lunar';
     dom.customCastPanel.hidden = mode !== 'custom';
     clearCastOutput();
@@ -115,6 +132,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.resultTools.style.display = 'none';
     dom.btnQiGua.style.display = ''; dom.btnQiGua.disabled = !canCast();
     dom.btnJieGua.style.display = 'none'; dom.btnJieGua.disabled = true;
+    if (castMode === 'random') resetRandomCast();
+    else stopRandomRoll();
     plainHtml = '';
     yiLiHtml = '';
     dryRunDetailHtml = '';
@@ -125,10 +144,12 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   function castModeName() {
     if (castMode === 'lunar') return '农历时起卦';
     if (castMode === 'custom') return '自定义起卦';
-    return '随机数起卦';
+    if (castMode === 'random') return '天选数起卦';
+    return '自选数起卦';
   }
 
   function canCast() {
+    if (castMode === 'random') return Boolean(dom.question.value.trim());
     return activeNumbers().length >= MIN && Boolean(dom.question.value.trim());
   }
 
@@ -136,6 +157,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     if (castMode === 'lunar') {
       return LUNAR_CAST ? LUNAR_CAST.numbers : [];
     }
+    if (castMode === 'random') return randomPicked.slice();
     if (castMode === 'custom') {
       return [customCast.shang, customCast.xia, customCast.dong];
     }
@@ -231,6 +253,102 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     return c;
   }
 
+  function randomInt1To49() {
+    if (window.crypto && window.crypto.getRandomValues) {
+      const values = new Uint32Array(1);
+      const limit = Math.floor(0x100000000 / 49) * 49;
+      do {
+        window.crypto.getRandomValues(values);
+      } while (values[0] >= limit);
+      return (values[0] % 49) + 1;
+    }
+    return Math.floor(Math.random() * 49) + 1;
+  }
+
+  function randomFloat(min, max) {
+    if (window.crypto && window.crypto.getRandomValues) {
+      const values = new Uint32Array(1);
+      window.crypto.getRandomValues(values);
+      return min + (values[0] / 0xffffffff) * (max - min);
+    }
+    return min + Math.random() * (max - min);
+  }
+
+  function renderRandomNumberGrid() {
+    dom.randomNumberGrid.innerHTML = Array.from({length: 49}, (_, index) =>
+      `<span class="random-number-tile" data-value="${index + 1}">${index + 1}</span>`
+    ).join('');
+    randomTiles = Array.from(dom.randomNumberGrid.querySelectorAll('.random-number-tile'));
+  }
+
+  function clearRandomTileState() {
+    randomTiles.forEach(tile => tile.classList.remove('is-lit', 'is-final'));
+  }
+
+  function lightRandomTile(value, final = false) {
+    randomTiles.forEach(tile => {
+      const active = Number(tile.dataset.value) === value;
+      tile.classList.toggle('is-lit', active && !final);
+      tile.classList.toggle('is-final', active && final);
+    });
+  }
+
+  function startRandomRoll() {
+    return new Promise(resolve => {
+      if (castMode !== 'random') { resolve(null); return; }
+      stopRandomRoll();
+      dom.randomCastPanel.classList.add('is-rolling');
+      clearRandomTileState();
+      let step = 0;
+      let currentValue = null;
+      const totalSteps = Math.round(randomFloat(15, 28));
+      const rollTile = () => {
+        const value = randomInt1To49();
+        currentValue = value;
+        dom.randomNumber.textContent = value;
+        lightRandomTile(value);
+        step += 1;
+        if (step < totalSteps) {
+          randomTimer = setTimeout(rollTile, Math.round(randomFloat(45 + step * 4, 90 + step * 8)));
+        } else {
+          randomTimer = null;
+          dom.randomCastPanel.classList.remove('is-rolling');
+          resolve(currentValue);
+        }
+      };
+      rollTile();
+    });
+  }
+
+  function stopRandomRoll() {
+    if (randomTimer) {
+      clearTimeout(randomTimer);
+      randomTimer = null;
+    }
+    if (dom.randomCastPanel) dom.randomCastPanel.classList.remove('is-rolling');
+  }
+
+  function resetRandomCast() {
+    stopRandomRoll();
+    randomPicked = [];
+    dom.randomNumber.textContent = '';
+    clearRandomTileState();
+  }
+
+  async function pickRandomNumbers() {
+    resetRandomCast();
+    for (let i = 0; i < MAX; i++) {
+      const n = await startRandomRoll();
+      if (n === null) break;
+      lightRandomTile(n, true);
+      randomPicked.push(n);
+      refresh();
+      if (i < MAX - 1) {
+        await new Promise(r => setTimeout(r, 380));
+      }
+    }
+  }
+
   function syncRightColumnHeight() {
     if (window.matchMedia('(max-width: 860px)').matches) {
       dom.rightCol.style.height = '';
@@ -274,8 +392,13 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dryRunDetailHtml = '';
     showingYiLi = false;
     dom.btnYiLi.textContent = '易理';
-    dom.btnQiGua.disabled = true;
     hexReady = false;
+
+    if (castMode === 'random') {
+      randomCasting = true;
+      refresh();
+      await pickRandomNumbers();
+    }
 
     try {
       const resp = await fetch(`${API_BASE}/api/qi-gua`, {method: 'POST', headers: {'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1'}, body: apiBody()});
@@ -291,11 +414,13 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       renderHexagrams(data.guas);
       requestAnimationFrame(syncRightColumnHeight);
     } else if (event === 'done') {
+      randomCasting = false;
       dom.btnQiGua.disabled = true;
       dom.btnJieGua.style.display = ''; dom.btnJieGua.disabled = false;
       hexReady = true;
       requestAnimationFrame(syncRightColumnHeight);
     } else if (event === 'error') {
+      randomCasting = false;
       dom.hexPlaceholder.style.display = ''; dom.hexPlaceholder.textContent = data;
       dom.btnQiGua.disabled = !canCast();
     }
@@ -303,6 +428,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
 
   dom.btnJieGua.addEventListener('click', async () => {
     if (!hexReady) return;
+    if (castMode === 'random') stopRandomRoll();
     dom.resultPlaceholder.style.display = 'none';
     dom.resultStatus.style.display = 'flex';
     dom.statusText.textContent = '正在解卦，请稍候……';
