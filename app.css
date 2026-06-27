@@ -59,6 +59,7 @@
   .gua-s  { top: 97%; left: 50%; }
   .gua-se { top: 97%; left: 98%; }
 
+  .footer-text { font-size: 0.85rem; color: var(--text-dim); padding: 0.25rem 0 0; }
   .container { width: min(100%, 1320px); margin: 0 auto; position: relative; z-index: 1; }
 
   .header { margin-bottom: 0.5rem; }

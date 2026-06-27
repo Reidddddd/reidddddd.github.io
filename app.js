@@ -19,7 +19,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     resultPlaceholder: $('resultPlaceholder'), resultContent: $('resultContent'),
     resultStatus: $('resultStatus'), resultTools: $('resultTools'), btnYiLi: $('btnYiLi'),
     statusText: $('statusText'), statusDetail: $('statusDetail'),
-    rightCol: document.querySelector('.right-col'), lunarPanel: $('lunarPanel'),
+    leftCol: document.querySelector('.left-col'), rightCol: document.querySelector('.right-col'), lunarPanel: $('lunarPanel'),
     modeButtons: Array.from(document.querySelectorAll('[data-cast-mode]')),
     numberCastPanel: $('numberCastPanel'), lunarCastPanel: $('lunarCastPanel'),
     customCastPanel: $('customCastPanel'),
@@ -237,7 +237,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       return;
     }
     const rightTop = dom.rightCol.getBoundingClientRect().top;
-    const lunarBottom = dom.lunarPanel.getBoundingClientRect().bottom;
+    const lunarBottom = dom.leftCol.getBoundingClientRect().bottom;
     const height = Math.max(0, Math.round(lunarBottom - rightTop));
     dom.rightCol.style.height = height ? `${height}px` : '';
   }
