@@ -69,28 +69,57 @@
         </div>
 
         <div class="mode-panel lunar-cast-panel" id="lunarCastPanel" hidden>
-          <div class="lunar-cast-source">
-            <span>当前农历</span>
-            <strong id="lunarCastSource"></strong>
+          <div class="lunar-calendar-card">
+            <div class="lunar-calendar-hrow">
+              <div class="lunar-calendar-header">
+                <button type="button" class="cal-nav" id="calPrev" aria-label="上一月">‹</button>
+                <span class="cal-month-label"><button type="button" class="cal-year-btn" id="calYearBtn"></button>年<span id="calMonthText"></span>月<div class="cal-year-drop" id="calYearDrop" hidden></div></span>
+                <button type="button" class="cal-nav" id="calNext" aria-label="下一月">›</button>
+              </div>
+              <span class="time-side-label">时分</span>
+            </div>
+            <div class="lunar-calendar-body">
+              <div class="lunar-calendar-main">
+                <div class="lunar-calendar-weekdays">
+                  <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+                </div>
+                <div class="lunar-calendar-days" id="calDays"></div>
+              </div>
+              <div class="lunar-calendar-time-side">
+              <div class="time-scroll-wrap">
+                <div class="time-scroll-highlight"></div>
+                <div class="time-scroll" id="hourScroll"></div>
+              </div>
+              <div class="time-scroll-wrap">
+                <div class="time-scroll-highlight"></div>
+                <div class="time-scroll" id="minuteScroll"></div>
+              </div>
+              </div>
+            </div>
           </div>
-          <div class="lunar-cast-grid">
-            <div class="lunar-cast-item">
-              <span>上卦</span>
-              <strong id="lunarShang"></strong>
-              <em id="lunarShangFormula"></em>
+          <div class="lunar-cast-result" id="lunarCastResult" hidden>
+            <div class="lunar-cast-source">
+              <span>农历时</span>
+              <strong id="lunarCastSource"></strong>
             </div>
-            <div class="lunar-cast-item">
-              <span>下卦</span>
-              <strong id="lunarXia"></strong>
-              <em id="lunarXiaFormula"></em>
-            </div>
-            <div class="lunar-cast-item">
-              <span>动爻</span>
-              <strong id="lunarDong"></strong>
-              <em id="lunarDongFormula"></em>
+            <div class="lunar-cast-grid">
+              <div class="lunar-cast-item">
+                <span>上卦</span>
+                <strong id="lunarShang"></strong>
+                <em id="lunarShangFormula"></em>
+              </div>
+              <div class="lunar-cast-item">
+                <span>下卦</span>
+                <strong id="lunarXia"></strong>
+                <em id="lunarXiaFormula"></em>
+              </div>
+              <div class="lunar-cast-item">
+                <span>动爻</span>
+                <strong id="lunarDong"></strong>
+                <em id="lunarDongFormula"></em>
+              </div>
             </div>
           </div>
-          <div class="lunar-cast-note">按年支数、农历月日、时支数合参。</div>
           <div class="lunar-cast-error" id="lunarCastError"></div>
         </div>
 

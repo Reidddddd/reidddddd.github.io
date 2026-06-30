@@ -27,6 +27,10 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     customShangOptions: $('customShangOptions'), customXiaOptions: $('customXiaOptions'),
     customDongOptions: $('customDongOptions'),
     lunarCastSource: $('lunarCastSource'), lunarCastError: $('lunarCastError'),
+    hourScroll: $('hourScroll'), minuteScroll: $('minuteScroll'),
+    calDays: $('calDays'), calMonthText: $('calMonthText'), calYearBtn: $('calYearBtn'), calYearDrop: $('calYearDrop'),
+    calPrev: $('calPrev'), calNext: $('calNext'),
+    lunarCastResult: $('lunarCastResult'),
     lunarShang: $('lunarShang'), lunarXia: $('lunarXia'), lunarDong: $('lunarDong'),
     lunarShangFormula: $('lunarShangFormula'), lunarXiaFormula: $('lunarXiaFormula'),
     lunarDongFormula: $('lunarDongFormula'),
@@ -37,11 +41,79 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   let randomTimer = null;
   let randomTiles = [];
   let LUNAR_CAST = null;
+  let lunarCastRevealed = false;
+  let lunarPickerFollowsNow = true;
+  let lunarPickerDate = new Date();
+  let lunarPickerHour = lunarPickerDate.getHours();
+  let lunarPickerMinute = lunarPickerDate.getMinutes();
+  let calendarYear = lunarPickerDate.getFullYear();
+  let calendarMonth = lunarPickerDate.getMonth();
+  let timeScrollBusy = false;
+
+  function buildTimeScrolls() {
+    let html = '';
+    for (let h = 0; h <= 23; h++) {
+      html += `<div class="time-item" data-value="${h}">${h}</div>`;
+    }
+    dom.hourScroll.innerHTML = html;
+    html = '';
+    for (let m = 0; m <= 59; m++) {
+      html += `<div class="time-item" data-value="${m}">${pad2(m)}</div>`;
+    }
+    dom.minuteScroll.innerHTML = html;
+
+    dom.hourScroll.addEventListener('scroll', () => onTimeScroll('hour'), {passive: true});
+    dom.minuteScroll.addEventListener('scroll', () => onTimeScroll('minute'), {passive: true});
+  }
+
+  function getTimeItemHeight() {
+    const item = dom.hourScroll.querySelector('.time-item');
+    return item ? item.offsetHeight : 28.8;
+  }
+
+  function setTimeScrollTo(hour, minute) {
+    timeScrollBusy = true;
+    const ih = getTimeItemHeight();
+    dom.hourScroll.scrollTop = hour * ih;
+    dom.minuteScroll.scrollTop = minute * ih;
+    updateTimeActiveItems();
+    requestAnimationFrame(() => { timeScrollBusy = false; });
+  }
+
+  function onTimeScroll(which) {
+    if (timeScrollBusy) return;
+    const scroll = which === 'hour' ? dom.hourScroll : dom.minuteScroll;
+    const ih = getTimeItemHeight();
+    const center = scroll.scrollTop + scroll.clientHeight / 2;
+    const idx = Math.round((center - ih / 2) / ih);
+    const maxVal = which === 'hour' ? 23 : 59;
+    const val = Math.max(0, Math.min(maxVal, idx));
+    if (which === 'hour') lunarPickerHour = val;
+    else lunarPickerMinute = val;
+    updateTimeActiveItems();
+    updateLunarPickerDateFromScroll();
+  }
+
+  function updateTimeActiveItems() {
+    dom.hourScroll.querySelectorAll('.time-item').forEach(item => {
+      item.classList.toggle('is-active', Number(item.dataset.value) === lunarPickerHour);
+    });
+    dom.minuteScroll.querySelectorAll('.time-item').forEach(item => {
+      item.classList.toggle('is-active', Number(item.dataset.value) === lunarPickerMinute);
+    });
+  }
+
+  function updateLunarPickerDateFromScroll() {
+    lunarPickerDate = new Date(calendarYear, calendarMonth,
+      lunarPickerDate.getDate(), lunarPickerHour, lunarPickerMinute);
+    if (!timeScrollBusy) lunarPickerFollowsNow = false;
+  }
 
   fetch(`${API_BASE}/api/lunar-data`, {headers: {'ngrok-skip-browser-warning': '1'}})
     .then(r => r.json())
-    .then(data => { LUNAR_CAST = data.lunar_cast; renderLunarPanel(data); refresh(); })
-    .catch(() => { LUNAR_CAST = null; refresh(); });
+    .then(data => { renderLunarPanel(data); requestAnimationFrame(syncRightColumnHeight); })
+    .catch(() => {});
+
   const JING_GUA = [
     {shu: 1, ming: '乾卦', xiang: '☰', wuXingClass: 'wu-xing-jin'},
     {shu: 2, ming: '兑卦', xiang: '☱', wuXingClass: 'wu-xing-jin'},
@@ -76,10 +148,10 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   renderCustomCastOptions();
 
   function refresh() {
-    const lunarCast = updateLunarCastPanel();
     if (castMode === 'lunar') {
-      dom.castSummaryLine1.textContent = '年月日时，合数成卦';
-      dom.castSummaryLine2.textContent = '';
+      const lunarCast = updateLunarCastPanel();
+      dom.castSummaryLine1.textContent = '';
+      dom.castSummaryLine2.textContent = lunarCast ? '农时既得，卦数从之' : '公历择时，卦起农定';
       dom.selectedNums.textContent = lunarCast ? lunarCast.numbers.join(' ') : '';
     } else if (castMode === 'random') {
       dom.castSummaryLine1.textContent = '天运自转，数由天定';
@@ -116,6 +188,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.randomCastPanel.hidden = mode !== 'random';
     dom.lunarCastPanel.hidden = mode !== 'lunar';
     dom.customCastPanel.hidden = mode !== 'custom';
+    if (mode === 'lunar') refreshLunarPickerNow();
     clearCastOutput();
     refresh();
   }
@@ -134,6 +207,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.btnJieGua.style.display = 'none'; dom.btnJieGua.disabled = true;
     if (castMode === 'random') resetRandomCast();
     else stopRandomRoll();
+    if (castMode === 'lunar') hideLunarCastResult();
     plainHtml = '';
     yiLiHtml = '';
     dryRunDetailHtml = '';
@@ -149,6 +223,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   }
 
   function canCast() {
+    if (castMode === 'lunar') return Boolean(readSolarDateTime()) && Boolean(dom.question.value.trim());
     if (castMode === 'random') return Boolean(dom.question.value.trim());
     return activeNumbers().length >= MIN && Boolean(dom.question.value.trim());
   }
@@ -209,6 +284,264 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     });
   }
 
+  const GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+  const BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+  const BRANCH_SHU = BRANCHES.reduce((acc, branch, index) => {
+    acc[branch] = index + 1;
+    return acc;
+  }, {});
+  function initLunarPicker() {
+    setLunarPickerToNow();
+    hideLunarCastResult();
+    refresh();
+  }
+
+  function setLunarPickerToNow() {
+    const now = new Date();
+    lunarPickerDate = now;
+    lunarPickerHour = now.getHours();
+    lunarPickerMinute = now.getMinutes();
+    calendarYear = now.getFullYear();
+    calendarMonth = now.getMonth();
+    lunarPickerFollowsNow = true;
+    renderCalendar();
+    setTimeScrollTo(lunarPickerHour, lunarPickerMinute);
+  }
+
+  function refreshLunarPickerNow() {
+    if (lunarPickerFollowsNow && !lunarCastRevealed) setLunarPickerToNow();
+  }
+
+  function pad2(value) {
+    return String(value).padStart(2, '0');
+  }
+
+  function readSolarDateTime() {
+    const date = new Date(lunarPickerDate);
+    date.setHours(lunarPickerHour, lunarPickerMinute, 0, 0);
+    return date;
+  }
+
+  function renderCalendar() {
+    dom.calYearBtn.textContent = calendarYear;
+    dom.calMonthText.textContent = calendarMonth + 1;
+    const today = new Date();
+    const todayY = today.getFullYear();
+    const todayM = today.getMonth();
+    const todayD = today.getDate();
+    const selY = lunarPickerDate.getFullYear();
+    const selM = lunarPickerDate.getMonth();
+    const selD = lunarPickerDate.getDate();
+
+    const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+    const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+    const daysInPrevMonth = new Date(calendarYear, calendarMonth, 0).getDate();
+
+    let html = '';
+    // prev month fill
+    for (let i = firstDay - 1; i >= 0; i--) {
+      const d = daysInPrevMonth - i;
+      html += `<button type="button" class="cal-day is-other-month" data-day="${d}" data-month="prev">${d}</button>`;
+    }
+    // current month
+    for (let d = 1; d <= daysInMonth; d++) {
+      let cls = 'cal-day';
+      if (calendarYear === todayY && calendarMonth === todayM && d === todayD) cls += ' is-today';
+      if (calendarYear === selY && calendarMonth === selM && d === selD) cls += ' is-selected';
+      html += `<button type="button" class="${cls}" data-day="${d}" data-month="curr">${d}</button>`;
+    }
+    // next month fill
+    const totalCells = firstDay + daysInMonth;
+    const remain = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+    for (let d = 1; d <= remain; d++) {
+      html += `<button type="button" class="cal-day is-other-month" data-day="${d}" data-month="next">${d}</button>`;
+    }
+
+    dom.calDays.innerHTML = html;
+    dom.calDays.querySelectorAll('.cal-day').forEach(btn => {
+      btn.addEventListener('click', () => handleDayClick(btn));
+    });
+  }
+
+  function handleDayClick(btn) {
+    const day = Number(btn.dataset.day);
+    const monthType = btn.dataset.month;
+    if (monthType === 'prev') {
+      calendarMonth -= 1;
+      if (calendarMonth < 0) { calendarMonth = 11; calendarYear -= 1; }
+    } else if (monthType === 'next') {
+      calendarMonth += 1;
+      if (calendarMonth > 11) { calendarMonth = 0; calendarYear += 1; }
+    }
+    lunarPickerDate = new Date(calendarYear, calendarMonth, day,
+      lunarPickerHour, lunarPickerMinute);
+    lunarPickerFollowsNow = false;
+    renderCalendar();
+    if (castMode !== 'lunar') return;
+    if (hexReady) clearCastOutput();
+    else hideLunarCastResult();
+    refresh();
+    requestAnimationFrame(syncRightColumnHeight);
+  }
+
+  function handleLunarPickerChange() {
+    lunarPickerFollowsNow = false;
+    if (castMode !== 'lunar') return;
+    if (hexReady) clearCastOutput();
+    else hideLunarCastResult();
+    refresh();
+    requestAnimationFrame(syncRightColumnHeight);
+  }
+
+  function hideLunarCastResult() {
+    lunarCastRevealed = false;
+    LUNAR_CAST = null;
+    dom.lunarCastResult.hidden = true;
+    dom.lunarCastPanel.classList.remove('is-error');
+    dom.lunarCastError.textContent = '';
+  }
+
+  function showLunarError(message) {
+    lunarCastRevealed = false;
+    LUNAR_CAST = null;
+    dom.lunarCastResult.hidden = true;
+    dom.lunarCastPanel.classList.add('is-error');
+    dom.lunarCastError.textContent = message;
+  }
+
+  function prepareLunarCastFromPicker() {
+    const date = readSolarDateTime();
+    if (!date) {
+      showLunarError('请选择有效的公历日期和时刻。');
+      return false;
+    }
+    const data = buildLunarData(date);
+    if (!data) {
+      showLunarError('当前浏览器暂不支持农历换算。');
+      return false;
+    }
+    LUNAR_CAST = data.lunar_cast;
+    lunarCastRevealed = true;
+    lunarPickerFollowsNow = false;
+    updateLunarCastPanel();
+    refresh();
+    requestAnimationFrame(syncRightColumnHeight);
+    return true;
+  }
+
+  function buildLunarData(date) {
+    let parts;
+    try {
+      parts = new Intl.DateTimeFormat('zh-CN-u-ca-chinese', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }).formatToParts(date);
+    } catch (_) {
+      return null;
+    }
+
+    const relatedYear = Number(lunarPart(parts, 'relatedYear')) || date.getFullYear();
+    const monthText = lunarPart(parts, 'month');
+    const dayText = lunarPart(parts, 'day');
+    const monthShu = parseLunarMonth(monthText);
+    const dayShu = parseChineseNumber(dayText);
+    const yearName = lunarPart(parts, 'yearName') || readLunarYearName(date) || sexagenaryYearName(relatedYear);
+    const yearBranch = yearName.slice(-1);
+    const yearShu = BRANCH_SHU[yearBranch];
+    const hourBranch = hourBranchName(date.getHours());
+    const hourShu = BRANCH_SHU[hourBranch];
+    if (!monthShu || !dayShu || !yearShu || !hourShu) return null;
+
+    const minuteShu = date.getMinutes();
+    const monthLabel = monthText || `${monthShu}月`;
+    const dayLabel = Number.isInteger(Number(dayText)) ? chineseDayName(dayShu) : dayText;
+    const shangTotal = yearShu + monthShu + dayShu;
+    const xiaTotal = shangTotal + hourShu;
+    const dongTotal = xiaTotal + minuteShu;
+    const numbers = [modShu(shangTotal, 8), modShu(xiaTotal, 8), modShu(dongTotal, 6)];
+    const solarDisplay = `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+
+    return {
+      lunar_cast: {
+        display: `${yearName}年 ${monthLabel}${dayLabel} ${hourBranch}时`,
+        solarDisplay,
+        yearShu,
+        monthShu,
+        dayShu,
+        hourShu,
+        minuteShu,
+        numbers,
+      },
+    };
+  }
+
+  function lunarPart(parts, type) {
+    const part = parts.find(item => item.type === type);
+    return part ? part.value : '';
+  }
+
+  function readLunarYearName(date) {
+    try {
+      const text = new Intl.DateTimeFormat('zh-CN-u-ca-chinese', {dateStyle: 'full'}).format(date);
+      const match = text.match(/[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]/);
+      return match ? match[0] : '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function sexagenaryYearName(year) {
+    const index = positiveMod(year - 1984, 60);
+    return `${GAN[index % 10]}${BRANCHES[index % 12]}`;
+  }
+
+  function parseLunarMonth(value) {
+    const clean = String(value || '').replace(/^闰/, '').replace('月', '').trim();
+    const aliases = {正: 1, 冬: 11, 腊: 12};
+    return aliases[clean] || parseChineseNumber(clean);
+  }
+
+  function parseChineseNumber(value) {
+    const text = String(value || '').replace(/[日月]/g, '').trim();
+    if (/^\d+$/.test(text)) return Number(text);
+    const digits = {一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 零: 0};
+    if (digits[text]) return digits[text];
+    if (text.startsWith('初')) return digits[text.slice(1)] || 0;
+    if (text === '廿') return 20;
+    if (text.startsWith('廿')) return 20 + (digits[text.slice(1)] || 0);
+    if (text === '卅') return 30;
+    if (text.startsWith('卅')) return 30 + (digits[text.slice(1)] || 0);
+    if (text.includes('十')) {
+      const [left, right] = text.split('十');
+      const tens = left ? digits[left] : 1;
+      return (tens || 1) * 10 + (right ? (digits[right] || 0) : 0);
+    }
+    return 0;
+  }
+
+  function chineseDayName(day) {
+    const names = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+    if (day <= 10) return `初${names[day]}`;
+    if (day < 20) return `十${names[day - 10]}`;
+    if (day === 20) return '二十';
+    if (day < 30) return `廿${names[day - 20]}`;
+    return day === 30 ? '三十' : String(day);
+  }
+
+  function hourBranchName(hour) {
+    return BRANCHES[Math.floor(((hour + 1) % 24) / 2)];
+  }
+
+  function modShu(total, modulo) {
+    const rest = total % modulo;
+    return rest === 0 ? modulo : rest;
+  }
+
+  function positiveMod(value, modulo) {
+    return ((value % modulo) + modulo) % modulo;
+  }
+
   function renderLunarPanel(data) {
     const cols = dom.lunarPanel.querySelectorAll('.lunar-col');
     if (data.nong_li) {
@@ -236,12 +569,18 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   }
 
   function updateLunarCastPanel() {
+    if (!lunarCastRevealed) {
+      dom.lunarCastResult.hidden = true;
+      dom.lunarCastPanel.classList.remove('is-error');
+      dom.lunarCastError.textContent = '';
+      return null;
+    }
     if (!LUNAR_CAST) {
-      dom.lunarCastPanel.classList.add('is-error');
-      dom.lunarCastError.textContent = '当前农历信息不足，暂时不能折算。';
+      showLunarError('当前农历信息不足，暂时不能折算。');
       return null;
     }
     dom.lunarCastPanel.classList.remove('is-error');
+    dom.lunarCastResult.hidden = false;
     const c = LUNAR_CAST;
     dom.lunarCastSource.textContent = c.display;
     dom.lunarShang.textContent = c.numbers[0];
@@ -249,7 +588,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.lunarDong.textContent = c.numbers[2];
     dom.lunarShangFormula.textContent = `${c.yearShu}+${c.monthShu}+${c.dayShu}`;
     dom.lunarXiaFormula.textContent = `${c.yearShu}+${c.monthShu}+${c.dayShu}+${c.hourShu}`;
-    dom.lunarDongFormula.textContent = `${c.yearShu}+${c.monthShu}+${c.dayShu}+${c.hourShu}`;
+    dom.lunarDongFormula.textContent = `${c.yearShu}+${c.monthShu}+${c.dayShu}+${c.hourShu}+${c.minuteShu}`;
     return c;
   }
 
@@ -361,17 +700,84 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   }
 
   window.addEventListener('resize', () => requestAnimationFrame(syncRightColumnHeight));
-  window.addEventListener('load', () => requestAnimationFrame(syncRightColumnHeight));
+  window.addEventListener('load', () => {
+    refreshLunarPickerNow();
+    requestAnimationFrame(syncRightColumnHeight);
+  });
+  window.addEventListener('focus', () => {
+    refreshLunarPickerNow();
+    refresh();
+  });
 
   dom.btnReset.addEventListener('click', () => {
     selected = [];
     document.querySelectorAll('.number-tile.selected').forEach(tile => tile.classList.remove('selected'));
+    if (castMode === 'lunar') setLunarPickerToNow();
     clearCastOutput();
     refresh();
     requestAnimationFrame(syncRightColumnHeight);
   });
   dom.question.addEventListener('input', refresh);
   dom.modeButtons.forEach(btn => btn.addEventListener('click', () => setCastMode(btn.dataset.castMode)));
+  dom.calPrev.addEventListener('click', () => {
+    dom.calYearDrop.hidden = true;
+    calendarMonth -= 1;
+    if (calendarMonth < 0) { calendarMonth = 11; calendarYear -= 1; }
+    renderCalendar();
+  });
+  dom.calNext.addEventListener('click', () => {
+    dom.calYearDrop.hidden = true;
+    calendarMonth += 1;
+    if (calendarMonth > 11) { calendarMonth = 0; calendarYear += 1; }
+    renderCalendar();
+  });
+  dom.calYearBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (dom.calYearDrop.hidden) {
+      openYearDrop();
+    } else {
+      dom.calYearDrop.hidden = true;
+    }
+  });
+  document.addEventListener('click', (e) => {
+    if (!dom.calYearDrop.hidden && !dom.calYearBtn.contains(e.target) && !dom.calYearDrop.contains(e.target)) {
+      dom.calYearDrop.hidden = true;
+    }
+  });
+
+  let yearDropBase = calendarYear - 4;
+
+  function openYearDrop() {
+    yearDropBase = calendarYear - 4;
+    renderYearDrop();
+  }
+
+  function renderYearDrop() {
+    let html = `<div class="cal-year-nav-row"><button type="button" class="cal-year-nav" data-dir="up">‹</button><button type="button" class="cal-year-nav" data-dir="down">›</button></div>`;
+    for (let y = yearDropBase; y < yearDropBase + 9; y++) {
+      const cls = y === calendarYear ? 'cal-year-opt is-picked' : 'cal-year-opt';
+      html += `<button type="button" class="${cls}" data-year="${y}">${y}</button>`;
+    }
+    dom.calYearDrop.innerHTML = html;
+    dom.calYearDrop.hidden = false;
+    dom.calYearDrop.querySelectorAll('.cal-year-opt').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        calendarYear = Number(btn.dataset.year);
+        renderCalendar();
+        dom.calYearDrop.hidden = true;
+      });
+    });
+    dom.calYearDrop.querySelectorAll('.cal-year-nav').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        yearDropBase += btn.dataset.dir === 'up' ? -9 : 9;
+        renderYearDrop();
+      });
+    });
+  }
+  buildTimeScrolls();
+  initLunarPicker();
 
   const apiBody = () => JSON.stringify({
     cast_mode: castMode,
@@ -382,6 +788,10 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
 
   dom.btnQiGua.addEventListener('click', async () => {
     if (!canCast()) return;
+    if (castMode === 'lunar' && !prepareLunarCastFromPicker()) {
+      refresh();
+      return;
+    }
     dom.hexPlaceholder.style.display = 'none';
     dom.resultContent.style.display = 'none'; dom.resultContent.textContent = '';
     dom.resultPlaceholder.style.display = '';
