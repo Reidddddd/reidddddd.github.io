@@ -49,21 +49,25 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   let calendarYear = lunarPickerDate.getFullYear();
   let calendarMonth = lunarPickerDate.getMonth();
   let timeScrollBusy = false;
+  const TIME_LOOP_CYCLES = 5;
+  const TIME_LOOP_MID = Math.floor(TIME_LOOP_CYCLES / 2);
 
   function buildTimeScrolls() {
-    let html = '';
-    for (let h = 0; h <= 23; h++) {
-      html += `<div class="time-item" data-value="${h}">${h}</div>`;
-    }
-    dom.hourScroll.innerHTML = html;
-    html = '';
-    for (let m = 0; m <= 59; m++) {
-      html += `<div class="time-item" data-value="${m}">${pad2(m)}</div>`;
-    }
-    dom.minuteScroll.innerHTML = html;
+    dom.hourScroll.innerHTML = buildTimeLoopItems(24, value => pad2(value));
+    dom.minuteScroll.innerHTML = buildTimeLoopItems(60, value => pad2(value));
 
     dom.hourScroll.addEventListener('scroll', () => onTimeScroll('hour'), {passive: true});
     dom.minuteScroll.addEventListener('scroll', () => onTimeScroll('minute'), {passive: true});
+  }
+
+  function buildTimeLoopItems(count, labelFor) {
+    let html = '';
+    for (let cycle = 0; cycle < TIME_LOOP_CYCLES; cycle++) {
+      for (let value = 0; value < count; value++) {
+        html += `<div class="time-item" data-cycle="${cycle}" data-value="${value}">${labelFor(value)}</div>`;
+      }
+    }
+    return html;
   }
 
   function getTimeItemHeight() {
@@ -73,25 +77,59 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
 
   function setTimeScrollTo(hour, minute) {
     timeScrollBusy = true;
-    const ih = getTimeItemHeight();
-    dom.hourScroll.scrollTop = hour * ih;
-    dom.minuteScroll.scrollTop = minute * ih;
+    scrollTimeColumnTo(dom.hourScroll, hour);
+    scrollTimeColumnTo(dom.minuteScroll, minute);
     updateTimeActiveItems();
     requestAnimationFrame(() => { timeScrollBusy = false; });
+  }
+
+  function scrollTimeColumnTo(scroll, value) {
+    const item = scroll.querySelector(`[data-cycle="${TIME_LOOP_MID}"][data-value="${value}"]`);
+    if (!item || !item.offsetHeight || !scroll.clientHeight) {
+      scroll.scrollTop = value * getTimeItemHeight();
+      return;
+    }
+    scroll.scrollTop = item.offsetTop - (scroll.clientHeight - item.offsetHeight) / 2;
   }
 
   function onTimeScroll(which) {
     if (timeScrollBusy) return;
     const scroll = which === 'hour' ? dom.hourScroll : dom.minuteScroll;
-    const ih = getTimeItemHeight();
-    const center = scroll.scrollTop + scroll.clientHeight / 2;
-    const idx = Math.round((center - ih / 2) / ih);
+    const current = closestTimeItem(scroll);
+    const idx = current.value;
     const maxVal = which === 'hour' ? 23 : 59;
     const val = Math.max(0, Math.min(maxVal, idx));
     if (which === 'hour') lunarPickerHour = val;
     else lunarPickerMinute = val;
     updateTimeActiveItems();
     updateLunarPickerDateFromScroll();
+    normalizeTimeLoop(scroll, current);
+  }
+
+  function closestTimeItem(scroll) {
+    const items = Array.from(scroll.querySelectorAll('.time-item'));
+    const center = scroll.scrollTop + scroll.clientHeight / 2;
+    let closest = {value: 0, cycle: TIME_LOOP_MID};
+    let closestDistance = Infinity;
+    items.forEach(item => {
+      const itemCenter = item.offsetTop + item.offsetHeight / 2;
+      const distance = Math.abs(itemCenter - center);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closest = {
+          value: Number(item.dataset.value),
+          cycle: Number(item.dataset.cycle),
+        };
+      }
+    });
+    return closest;
+  }
+
+  function normalizeTimeLoop(scroll, current) {
+    if (current.cycle > 0 && current.cycle < TIME_LOOP_CYCLES - 1) return;
+    timeScrollBusy = true;
+    scrollTimeColumnTo(scroll, current.value);
+    requestAnimationFrame(() => { timeScrollBusy = false; });
   }
 
   function updateTimeActiveItems() {
@@ -135,10 +173,10 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   // 生成 1–49 格子
   for (let i = 1; i <= 49; i++) {
     const tile = Object.assign(document.createElement('div'), {className: 'number-tile', textContent: i});
+    tile.dataset.value = i;
     tile.addEventListener('click', () => {
-      const idx = selected.indexOf(i);
-      if (idx >= 0) { selected.splice(idx, 1); tile.classList.remove('selected'); }
-      else if (selected.length < MAX) { selected.push(i); tile.classList.add('selected'); }
+      if (selected.length < MAX) selected.push(i);
+      syncNumberTileStates();
       if (hexReady) clearCastOutput();
       refresh();
     });
@@ -168,9 +206,9 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     }
     const valid = canCast();
     if (!hexReady) {
-      if (randomCasting) {
+      if (castMode === 'random' && randomCasting) {
         dom.btnQiGua.disabled = true;
-        dom.btnJieGua.style.display = '';
+        dom.btnJieGua.style.display = 'none';
         dom.btnJieGua.disabled = true;
       } else {
         dom.btnQiGua.disabled = !valid;
@@ -206,7 +244,10 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.btnQiGua.style.display = ''; dom.btnQiGua.disabled = !canCast();
     dom.btnJieGua.style.display = 'none'; dom.btnJieGua.disabled = true;
     if (castMode === 'random') resetRandomCast();
-    else stopRandomRoll();
+    else {
+      randomCasting = false;
+      stopRandomRoll();
+    }
     if (castMode === 'lunar') hideLunarCastResult();
     plainHtml = '';
     yiLiHtml = '';
@@ -237,6 +278,15 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       return [customCast.shang, customCast.xia, customCast.dong];
     }
     return selected.slice();
+  }
+
+  function syncNumberTileStates() {
+    document.querySelectorAll('.number-tile').forEach(tile => {
+      const value = Number(tile.dataset.value);
+      const count = selected.filter(n => n === value).length;
+      tile.classList.toggle('selected', count > 0);
+      tile.dataset.count = count > 1 ? String(count) : '';
+    });
   }
 
   function renderCustomCastOptions() {
@@ -640,7 +690,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       clearRandomTileState();
       let step = 0;
       let currentValue = null;
-      const totalSteps = Math.round(randomFloat(15, 28));
+      const totalSteps = Math.round(randomFloat(20, 28));
       const rollTile = () => {
         const value = randomInt1To49();
         currentValue = value;
@@ -648,7 +698,10 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
         lightRandomTile(value);
         step += 1;
         if (step < totalSteps) {
-          randomTimer = setTimeout(rollTile, Math.round(randomFloat(45 + step * 4, 90 + step * 8)));
+          const progress = step / (totalSteps - 1);
+          const eased = progress * progress;
+          const delay = 26 + eased * 335 + randomFloat(-10, 24);
+          randomTimer = setTimeout(rollTile, Math.round(delay));
         } else {
           randomTimer = null;
           dom.randomCastPanel.classList.remove('is-rolling');
@@ -667,15 +720,16 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     if (dom.randomCastPanel) dom.randomCastPanel.classList.remove('is-rolling');
   }
 
-  function resetRandomCast() {
+  function resetRandomCast(resetCasting = true) {
     stopRandomRoll();
+    if (resetCasting) randomCasting = false;
     randomPicked = [];
     dom.randomNumber.textContent = '';
     clearRandomTileState();
   }
 
   async function pickRandomNumbers() {
-    resetRandomCast();
+    resetRandomCast(false);
     for (let i = 0; i < MAX; i++) {
       const n = await startRandomRoll();
       if (n === null) break;
@@ -683,7 +737,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       randomPicked.push(n);
       refresh();
       if (i < MAX - 1) {
-        await new Promise(r => setTimeout(r, 380));
+        await new Promise(r => setTimeout(r, Math.round(randomFloat(760, 960))));
       }
     }
   }
@@ -711,7 +765,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
 
   dom.btnReset.addEventListener('click', () => {
     selected = [];
-    document.querySelectorAll('.number-tile.selected').forEach(tile => tile.classList.remove('selected'));
+    syncNumberTileStates();
     if (castMode === 'lunar') setLunarPickerToNow();
     clearCastOutput();
     refresh();
@@ -814,7 +868,11 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       const resp = await fetch(`${API_BASE}/api/qi-gua`, {method: 'POST', headers: {'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1'}, body: apiBody()});
       for await (const sse_event of streamSSE(resp.body.getReader())) handleQiGua(sse_event.event, sse_event.data);
     } catch (error) {
+      randomCasting = false;
       dom.statusText.textContent = '连接出错'; dom.statusDetail.textContent = error.message;
+      dom.btnQiGua.disabled = !canCast();
+      dom.btnJieGua.style.display = 'none'; dom.btnJieGua.disabled = true;
+      refresh();
     }
   });
 
@@ -833,6 +891,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       randomCasting = false;
       dom.hexPlaceholder.style.display = ''; dom.hexPlaceholder.textContent = data;
       dom.btnQiGua.disabled = !canCast();
+      dom.btnJieGua.style.display = 'none'; dom.btnJieGua.disabled = true;
     }
   }
 
