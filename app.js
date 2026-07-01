@@ -62,101 +62,6 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     pauseMax: 960,
   };
 
-  function buildTimeScrolls() {
-    dom.hourScroll.innerHTML = buildTimeLoopItems(24, value => pad2(value));
-    dom.minuteScroll.innerHTML = buildTimeLoopItems(60, value => pad2(value));
-
-    dom.hourScroll.addEventListener('scroll', () => onTimeScroll('hour'), {passive: true});
-    dom.minuteScroll.addEventListener('scroll', () => onTimeScroll('minute'), {passive: true});
-  }
-
-  function buildTimeLoopItems(count, labelFor) {
-    let html = '';
-    for (let cycle = 0; cycle < TIME_LOOP_CYCLES; cycle++) {
-      for (let value = 0; value < count; value++) {
-        html += `<div class="time-item" data-cycle="${cycle}" data-value="${value}">${labelFor(value)}</div>`;
-      }
-    }
-    return html;
-  }
-
-  function getTimeItemHeight() {
-    const item = dom.hourScroll.querySelector('.time-item');
-    return item ? item.offsetHeight : 28.8;
-  }
-
-  function setTimeScrollTo(hour, minute) {
-    timeScrollBusy = true;
-    scrollTimeColumnTo(dom.hourScroll, hour);
-    scrollTimeColumnTo(dom.minuteScroll, minute);
-    updateTimeActiveItems();
-    requestAnimationFrame(() => { timeScrollBusy = false; });
-  }
-
-  function scrollTimeColumnTo(scroll, value) {
-    const item = scroll.querySelector(`[data-cycle="${TIME_LOOP_MID}"][data-value="${value}"]`);
-    if (!item || !item.offsetHeight || !scroll.clientHeight) {
-      scroll.scrollTop = value * getTimeItemHeight();
-      return;
-    }
-    scroll.scrollTop = item.offsetTop - (scroll.clientHeight - item.offsetHeight) / 2;
-  }
-
-  function onTimeScroll(which) {
-    if (timeScrollBusy) return;
-    const scroll = which === 'hour' ? dom.hourScroll : dom.minuteScroll;
-    const current = closestTimeItem(scroll);
-    const idx = current.value;
-    const maxVal = which === 'hour' ? 23 : 59;
-    const val = Math.max(0, Math.min(maxVal, idx));
-    if (which === 'hour') lunarPickerHour = val;
-    else lunarPickerMinute = val;
-    updateTimeActiveItems();
-    updateLunarPickerDateFromScroll();
-    normalizeTimeLoop(scroll, current);
-  }
-
-  function closestTimeItem(scroll) {
-    const items = Array.from(scroll.querySelectorAll('.time-item'));
-    const center = scroll.scrollTop + scroll.clientHeight / 2;
-    let closest = {value: 0, cycle: TIME_LOOP_MID};
-    let closestDistance = Infinity;
-    items.forEach(item => {
-      const itemCenter = item.offsetTop + item.offsetHeight / 2;
-      const distance = Math.abs(itemCenter - center);
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closest = {
-          value: Number(item.dataset.value),
-          cycle: Number(item.dataset.cycle),
-        };
-      }
-    });
-    return closest;
-  }
-
-  function normalizeTimeLoop(scroll, current) {
-    if (current.cycle > 0 && current.cycle < TIME_LOOP_CYCLES - 1) return;
-    timeScrollBusy = true;
-    scrollTimeColumnTo(scroll, current.value);
-    requestAnimationFrame(() => { timeScrollBusy = false; });
-  }
-
-  function updateTimeActiveItems() {
-    dom.hourScroll.querySelectorAll('.time-item').forEach(item => {
-      item.classList.toggle('is-active', Number(item.dataset.value) === lunarPickerHour);
-    });
-    dom.minuteScroll.querySelectorAll('.time-item').forEach(item => {
-      item.classList.toggle('is-active', Number(item.dataset.value) === lunarPickerMinute);
-    });
-  }
-
-  function updateLunarPickerDateFromScroll() {
-    lunarPickerDate = new Date(calendarYear, calendarMonth,
-      lunarPickerDate.getDate(), lunarPickerHour, lunarPickerMinute);
-    if (!timeScrollBusy) lunarPickerFollowsNow = false;
-  }
-
   fetch(`${API_BASE}/api/lunar-data`, {headers: {'ngrok-skip-browser-warning': '1'}})
     .then(r => r.json())
     .then(data => { renderLunarPanel(data); requestAnimationFrame(syncRightColumnHeight); })
@@ -350,6 +255,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     });
   }
 
+  // 农历时：状态初始化
   const GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
   const BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
   const BRANCH_SHU = BRANCHES.reduce((acc, branch, index) => {
@@ -388,6 +294,103 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     return date;
   }
 
+  // 农历时：时间滚轮
+  function buildTimeScrolls() {
+    dom.hourScroll.innerHTML = buildTimeLoopItems(24, value => pad2(value));
+    dom.minuteScroll.innerHTML = buildTimeLoopItems(60, value => pad2(value));
+
+    dom.hourScroll.addEventListener('scroll', () => onTimeScroll('hour'), {passive: true});
+    dom.minuteScroll.addEventListener('scroll', () => onTimeScroll('minute'), {passive: true});
+  }
+
+  function buildTimeLoopItems(count, labelFor) {
+    let html = '';
+    for (let cycle = 0; cycle < TIME_LOOP_CYCLES; cycle++) {
+      for (let value = 0; value < count; value++) {
+        html += `<div class="time-item" data-cycle="${cycle}" data-value="${value}">${labelFor(value)}</div>`;
+      }
+    }
+    return html;
+  }
+
+  function getTimeItemHeight() {
+    const item = dom.hourScroll.querySelector('.time-item');
+    return item ? item.offsetHeight : 28.8;
+  }
+
+  function setTimeScrollTo(hour, minute) {
+    timeScrollBusy = true;
+    scrollTimeColumnTo(dom.hourScroll, hour);
+    scrollTimeColumnTo(dom.minuteScroll, minute);
+    updateTimeActiveItems();
+    requestAnimationFrame(() => { timeScrollBusy = false; });
+  }
+
+  function scrollTimeColumnTo(scroll, value) {
+    const item = scroll.querySelector(`[data-cycle="${TIME_LOOP_MID}"][data-value="${value}"]`);
+    if (!item || !item.offsetHeight || !scroll.clientHeight) {
+      scroll.scrollTop = value * getTimeItemHeight();
+      return;
+    }
+    scroll.scrollTop = item.offsetTop - (scroll.clientHeight - item.offsetHeight) / 2;
+  }
+
+  function onTimeScroll(which) {
+    if (timeScrollBusy) return;
+    const scroll = which === 'hour' ? dom.hourScroll : dom.minuteScroll;
+    const current = closestTimeItem(scroll);
+    const idx = current.value;
+    const maxVal = which === 'hour' ? 23 : 59;
+    const val = Math.max(0, Math.min(maxVal, idx));
+    if (which === 'hour') lunarPickerHour = val;
+    else lunarPickerMinute = val;
+    updateTimeActiveItems();
+    updateLunarPickerDateFromScroll();
+    normalizeTimeLoop(scroll, current);
+  }
+
+  function closestTimeItem(scroll) {
+    const items = Array.from(scroll.querySelectorAll('.time-item'));
+    const center = scroll.scrollTop + scroll.clientHeight / 2;
+    let closest = {value: 0, cycle: TIME_LOOP_MID};
+    let closestDistance = Infinity;
+    items.forEach(item => {
+      const itemCenter = item.offsetTop + item.offsetHeight / 2;
+      const distance = Math.abs(itemCenter - center);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closest = {
+          value: Number(item.dataset.value),
+          cycle: Number(item.dataset.cycle),
+        };
+      }
+    });
+    return closest;
+  }
+
+  function normalizeTimeLoop(scroll, current) {
+    if (current.cycle > 0 && current.cycle < TIME_LOOP_CYCLES - 1) return;
+    timeScrollBusy = true;
+    scrollTimeColumnTo(scroll, current.value);
+    requestAnimationFrame(() => { timeScrollBusy = false; });
+  }
+
+  function updateTimeActiveItems() {
+    dom.hourScroll.querySelectorAll('.time-item').forEach(item => {
+      item.classList.toggle('is-active', Number(item.dataset.value) === lunarPickerHour);
+    });
+    dom.minuteScroll.querySelectorAll('.time-item').forEach(item => {
+      item.classList.toggle('is-active', Number(item.dataset.value) === lunarPickerMinute);
+    });
+  }
+
+  function updateLunarPickerDateFromScroll() {
+    lunarPickerDate = new Date(calendarYear, calendarMonth,
+      lunarPickerDate.getDate(), lunarPickerHour, lunarPickerMinute);
+    if (!timeScrollBusy) lunarPickerFollowsNow = false;
+  }
+
+  // 农历时：日历选择
   function renderCalendar() {
     dom.calYearBtn.textContent = calendarYear;
     dom.calMonthText.textContent = calendarMonth + 1;
@@ -459,6 +462,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     requestAnimationFrame(syncRightColumnHeight);
   }
 
+  // 农历时：农历换算和起卦结果
   function hideLunarCastResult() {
     lunarCastRevealed = false;
     LUNAR_CAST = null;
