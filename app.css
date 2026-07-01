@@ -255,7 +255,7 @@
     display: flex; justify-content: space-between; align-items: center; gap: 0.6rem;
     color: var(--text-dim);
   }
-  .lunar-cast-source span { font-size: 0.85rem; }
+  .lunar-cast-source span { font-size: 0.95rem; }
   .lunar-cast-source strong { color: var(--accent); font-size: 0.95rem; }
   .lunar-cast-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; }
   .lunar-cast-item {
