@@ -22,6 +22,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     resultStatus: $('resultStatus'), resultTools: $('resultTools'),
     resultViewButtons: Array.from(document.querySelectorAll('[data-result-view]')),
     statusText: $('statusText'), statusDetail: $('statusDetail'),
+    bgTemple: document.querySelector('.bg-temple'),
     leftCol: document.querySelector('.left-col'), rightCol: document.querySelector('.right-col'), lunarPanel: $('lunarPanel'),
     modeButtons: Array.from(document.querySelectorAll('[data-cast-mode]')),
     numberCastPanel: $('numberCastPanel'), randomCastPanel: $('randomCastPanel'),
@@ -44,6 +45,12 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   let randomPicked = [];
   let randomTimer = null;
   let randomTiles = [];
+  let diviningBgFrame = null;
+  let diviningBgAngle = 0;
+  let diviningBgLastTime = 0;
+  let diviningBgStartTime = 0;
+  let jieGuaAnimating = false;
+  const DIVINING_BG_SPEED = 0.43;
   let LUNAR_CAST = null;
   let lunarCastRevealed = false;
   let lunarPickerFollowsNow = true;
@@ -944,10 +951,12 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   }
 
   function beginJieGua() {
+    jieGuaAnimating = true;
+    startDiviningBackground();
     if (castMode === 'random') stopRandomRoll();
     dom.resultPlaceholder.style.display = 'none';
-    dom.resultStatus.style.display = 'flex';
-    dom.statusText.textContent = '正在解卦，请稍候……';
+    dom.resultStatus.style.display = 'none';
+    dom.statusText.textContent = '';
     dom.statusDetail.textContent = '';
     dom.resultTools.style.display = 'none';
     plainHtml = '';
@@ -958,8 +967,64 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.btnJieGua.disabled = true;
   }
 
-  function finishJieGua() {
+  async function finishJieGua() {
+    await settleDiviningBackground();
+    jieGuaAnimating = false;
+    revealCompleteResultTabs();
     dom.btnJieGua.disabled = false;
+  }
+
+  function startDiviningBackground() {
+    if (!dom.bgTemple || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (diviningBgFrame) cancelAnimationFrame(diviningBgFrame);
+    diviningBgAngle = 0;
+    diviningBgStartTime = performance.now();
+    diviningBgLastTime = diviningBgStartTime;
+
+    const spin = now => {
+      const delta = now - diviningBgLastTime;
+      diviningBgAngle = (diviningBgAngle + delta * DIVINING_BG_SPEED) % 360;
+      dom.bgTemple.style.setProperty('--bg-rotation', `${diviningBgAngle}deg`);
+      diviningBgLastTime = now;
+      diviningBgFrame = requestAnimationFrame(spin);
+    };
+
+    diviningBgFrame = requestAnimationFrame(spin);
+  }
+
+  function settleDiviningBackground() {
+    if (!dom.bgTemple) return Promise.resolve();
+    if (diviningBgFrame) cancelAnimationFrame(diviningBgFrame);
+    diviningBgFrame = null;
+
+    const startAngle = diviningBgAngle;
+    if (!startAngle) {
+      dom.bgTemple.style.removeProperty('--bg-rotation');
+      return Promise.resolve();
+    }
+
+    const remainingAngle = 360 - startAngle;
+    const targetAngle = startAngle + remainingAngle;
+    const startTime = performance.now();
+    const duration = Math.max(240, remainingAngle / DIVINING_BG_SPEED);
+
+    return new Promise(resolve => {
+      const settle = now => {
+        const progress = Math.min(1, (now - startTime) / duration);
+        const angle = startAngle + (targetAngle - startAngle) * progress;
+        dom.bgTemple.style.setProperty('--bg-rotation', `${angle}deg`);
+        if (progress < 1) {
+          diviningBgFrame = requestAnimationFrame(settle);
+        } else {
+          diviningBgFrame = null;
+          diviningBgAngle = 0;
+          dom.bgTemple.style.removeProperty('--bg-rotation');
+          resolve();
+        }
+      };
+
+      diviningBgFrame = requestAnimationFrame(settle);
+    });
   }
 
   function renderJieGuaProgress(data) {
@@ -970,7 +1035,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   function renderJieGuaResult(data) {
     dom.resultStatus.style.display = 'none';
     plainHtml = data || '';
-    revealCompleteResultTabs();
+    if (!jieGuaAnimating) revealCompleteResultTabs();
   }
 
   function showJieGuaError(data) {
@@ -992,7 +1057,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     } catch (error) {
       dom.statusText.textContent = '连接出错'; dom.statusDetail.textContent = error.message;
     } finally {
-      finishJieGua();
+      await finishJieGua();
     }
   });
 
@@ -1008,7 +1073,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       renderJieGuaResult(data);
     } else if (event === 'yi_li') {
       yiLiHtml = data;
-      revealCompleteResultTabs();
+      if (!jieGuaAnimating) revealCompleteResultTabs();
     } else if (event === 'error') {
       showJieGuaError(data);
     } else if (event === 'done') {

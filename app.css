@@ -32,10 +32,12 @@
   }
 
   /* 背景装饰 */
-  .bg-temple { position: fixed; inset: 0; pointer-events: none; z-index: 0; font-variant-emoji: text; }
+  .bg-temple {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0; font-variant-emoji: text;
+  }
   .bg-temple .tai-ji {
     --s: 34vmin;
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(180deg);
+    position: absolute; top: 50%; left: 50%; translate: -50% -50%; rotate: calc(180deg + var(--bg-rotation, 0deg));
     width: var(--s); height: var(--s); border-radius: 50%; opacity: 0.28;
     background: linear-gradient(to left, #f0e6d0 50%, #b8a080 50%);
   }
