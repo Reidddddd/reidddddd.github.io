@@ -462,10 +462,25 @@
 
   /* 解卦结果 */
   .result-section { flex: 1 1 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-  .result-section h2 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.3rem; flex-shrink: 0; color: var(--text-soft); }
+  .result-head { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem; flex-shrink: 0; }
+  .result-section h2 { font-size: 0.95rem; font-weight: 600; line-height: 1; margin: 0; color: var(--text-soft); }
   .result-status { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.3rem; flex-shrink: 0; }
-  .result-tools { display: flex; justify-content: flex-end; margin-bottom: 0.3rem; flex-shrink: 0; }
-  .result-tools .btn { font-size: 0.82rem; padding: 0.24rem 0.7rem; }
+  .result-tools {
+    display: flex; justify-content: flex-end; flex-shrink: 0;
+    gap: 0.55rem; transform: translateY(0.04rem);
+  }
+  .result-tab {
+    position: relative; padding: 0 0 0.16rem; border: none;
+    background: transparent; color: var(--text-dim); font: inherit; font-size: 0.86rem; font-weight: 600; line-height: 1;
+    cursor: pointer; transition: color 0.15s;
+  }
+  .result-tab::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: transparent; border-radius: 999px;
+  }
+  .result-tab.active { color: var(--accent); }
+  .result-tab.active::after { background: var(--accent); }
+  .result-tab:disabled { cursor: default; opacity: 0.45; }
   .spinner-sm {
     display: none; width: 16px; height: 16px;
     border: 2px solid var(--border); border-top-color: var(--accent);

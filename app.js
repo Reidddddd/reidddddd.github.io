@@ -6,8 +6,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   let customCast = {shang: 1, xia: 1, dong: 1};
   let plainHtml = '';
   let yiLiHtml = '';
-  let dryRunDetailHtml = '';
-  let showingYiLi = false;
+  let guwenHtml = '';
+  let activeResultView = 'guwen';
 
   // DOM 引用
   const $ = id => document.getElementById(id);
@@ -19,7 +19,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     question: $('question'), waiying: $('waiying'),
     hexPlaceholder: $('hexPlaceholder'), hexCols: $('hexCols'),
     resultPlaceholder: $('resultPlaceholder'), resultContent: $('resultContent'),
-    resultStatus: $('resultStatus'), resultTools: $('resultTools'), btnYiLi: $('btnYiLi'),
+    resultStatus: $('resultStatus'), resultTools: $('resultTools'),
+    resultViewButtons: Array.from(document.querySelectorAll('[data-result-view]')),
     statusText: $('statusText'), statusDetail: $('statusDetail'),
     leftCol: document.querySelector('.left-col'), rightCol: document.querySelector('.right-col'), lunarPanel: $('lunarPanel'),
     modeButtons: Array.from(document.querySelectorAll('[data-cast-mode]')),
@@ -180,9 +181,9 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     if (castMode === 'lunar') hideLunarCastResult();
     plainHtml = '';
     yiLiHtml = '';
-    dryRunDetailHtml = '';
-    showingYiLi = false;
-    dom.btnYiLi.textContent = '易理';
+    guwenHtml = '';
+    activeResultView = 'guwen';
+    updateResultTabs();
   }
 
   function castModeName() {
@@ -894,9 +895,9 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.resultTools.style.display = 'none';
     plainHtml = '';
     yiLiHtml = '';
-    dryRunDetailHtml = '';
-    showingYiLi = false;
-    dom.btnYiLi.textContent = '易理';
+    guwenHtml = '';
+    activeResultView = 'guwen';
+    updateResultTabs();
     hexReady = false;
   }
 
@@ -951,9 +952,9 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.resultTools.style.display = 'none';
     plainHtml = '';
     yiLiHtml = '';
-    dryRunDetailHtml = '';
-    showingYiLi = false;
-    dom.btnYiLi.textContent = '易理';
+    guwenHtml = '';
+    activeResultView = 'guwen';
+    updateResultTabs();
     dom.btnJieGua.disabled = true;
   }
 
@@ -968,17 +969,11 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
 
   function renderJieGuaResult(data) {
     dom.resultStatus.style.display = 'none';
-    if (!data && dryRunDetailHtml) {
-      plainHtml = dryRunDetailHtml;
-      data = dryRunDetailHtml;
-    } else {
-      plainHtml = data;
-    }
-    showingYiLi = false;
-    dom.btnYiLi.textContent = '易理';
-    dom.resultContent.innerHTML = data;
-    dom.resultContent.style.display = 'block';
-    requestAnimationFrame(syncRightColumnHeight);
+    plainHtml = data || '';
+    updateResultTabs();
+    if (plainHtml) selectResultView('baihua');
+    else if (guwenHtml) selectResultView('guwen');
+    else if (yiLiHtml) selectResultView('yili');
   }
 
   function showJieGuaError(data) {
@@ -1009,14 +1004,16 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     let data; try { data = JSON.parse(raw); } catch (_) { data = raw; }
     if (event === 'hexagrams') {
       renderHexagrams(data.guas);
-      renderDryRunDetail(data.guas);
+      renderGuwenDetail(data.guas);
     } else if (event === 'progress') {
       renderJieGuaProgress(data);
     } else if (event === 'result') {
       renderJieGuaResult(data);
     } else if (event === 'yi_li') {
       yiLiHtml = data;
+      updateResultTabs();
       if (yiLiHtml) dom.resultTools.style.display = 'flex';
+      if (activeResultView === 'yili') selectResultView('yili');
     } else if (event === 'error') {
       showJieGuaError(data);
     } else if (event === 'done') {
@@ -1024,23 +1021,40 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     }
   }
 
-  function toggleYiLiView() {
-    if (showingYiLi) {
-      if (!plainHtml) return;
-      dom.resultContent.innerHTML = plainHtml;
-      showingYiLi = false;
-      dom.btnYiLi.textContent = '易理';
-    } else {
-      if (!yiLiHtml) return;
-      dom.resultContent.innerHTML = yiLiHtml;
-      showingYiLi = true;
-      dom.btnYiLi.textContent = '白话';
+  function resultHtmlForView(view) {
+    if (view === 'guwen') return guwenHtml;
+    if (view === 'baihua') return plainHtml;
+    if (view === 'yili') return yiLiHtml;
+    return '';
+  }
+
+  function updateResultTabs() {
+    dom.resultViewButtons.forEach(btn => {
+      const view = btn.dataset.resultView;
+      const hasContent = Boolean(resultHtmlForView(view));
+      btn.classList.toggle('active', view === activeResultView);
+      btn.disabled = !hasContent;
+    });
+  }
+
+  function selectResultView(view) {
+    const html = resultHtmlForView(view);
+    if (!html) {
+      updateResultTabs();
+      return;
     }
+    activeResultView = view;
+    updateResultTabs();
+    dom.resultTools.style.display = 'flex';
+    dom.resultPlaceholder.style.display = 'none';
+    dom.resultContent.innerHTML = html;
     dom.resultContent.style.display = 'block';
     requestAnimationFrame(syncRightColumnHeight);
   }
 
-  dom.btnYiLi.addEventListener('click', toggleYiLiView);
+  dom.resultViewButtons.forEach(btn => {
+    btn.addEventListener('click', () => selectResultView(btn.dataset.resultView));
+  });
 
   // SSE 解析
   async function* streamSSE(reader) {
@@ -1074,18 +1088,15 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.hexCols.style.display = 'flex';
   }
 
-  function renderDryRunDetail(guas) {
+  function renderGuwenDetail(guas) {
     const hasZhouYi = guas.some(gua => gua.zhou_yi);
     if (hasZhouYi) {
-      dryRunDetailHtml = `<div class="gua-detail-cols">${guas.map(renderGuaDetail).join('')}</div>`;
-      plainHtml = dryRunDetailHtml;
-      showingYiLi = false;
+      guwenHtml = `<div class="gua-detail-cols">${guas.map(renderGuaDetail).join('')}</div>`;
       dom.resultPlaceholder.style.display = 'none';
-      dom.resultContent.innerHTML = dryRunDetailHtml;
-      dom.resultContent.style.display = 'block';
-      dom.resultTools.style.display = 'none';
+      selectResultView('guwen');
     } else {
-      dryRunDetailHtml = '';
+      guwenHtml = '';
+      updateResultTabs();
     }
   }
 

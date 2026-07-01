@@ -158,14 +158,18 @@
       </section>
 
       <section class="card card-padded result-section">
-        <h2>解卦</h2>
+        <div class="result-head">
+          <h2>解卦</h2>
+          <div class="result-tools" id="resultTools" style="display:none">
+            <button type="button" class="result-tab active" data-result-view="guwen">古文</button>
+            <button type="button" class="result-tab" data-result-view="baihua">白话</button>
+            <button type="button" class="result-tab" data-result-view="yili">易理</button>
+          </div>
+        </div>
         <div class="result-status" id="resultStatus" style="display:none">
           <div class="spinner-sm active"></div>
           <span class="status-text" id="statusText"></span>
           <span class="status-detail" id="statusDetail"></span>
-        </div>
-        <div class="result-tools" id="resultTools" style="display:none">
-          <button class="btn btn-secondary" id="btnYiLi">易理</button>
         </div>
         <div class="placeholder" id="resultPlaceholder">取数起卦后，解卦结果显示于此</div>
         <div class="result-content" id="resultContent" style="display:none"></div>
