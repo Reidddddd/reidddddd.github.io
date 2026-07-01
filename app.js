@@ -966,6 +966,35 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.btnJieGua.disabled = false;
   }
 
+  function renderJieGuaProgress(data) {
+    dom.statusDetail.textContent = dom.statusText.textContent;
+    dom.statusText.textContent = data;
+  }
+
+  function renderJieGuaResult(data) {
+    dom.resultStatus.style.display = 'none';
+    if (!data && dryRunDetailHtml) {
+      plainHtml = dryRunDetailHtml;
+      data = dryRunDetailHtml;
+    } else {
+      plainHtml = data;
+    }
+    showingYiLi = false;
+    dom.btnYiLi.textContent = '易理';
+    dom.resultContent.innerHTML = data;
+    dom.resultContent.style.display = 'block';
+    requestAnimationFrame(syncRightColumnHeight);
+  }
+
+  function showJieGuaError(data) {
+    dom.statusText.textContent = '出错';
+    dom.statusDetail.textContent = data;
+  }
+
+  function finishJieGuaStream() {
+    dom.resultStatus.style.display = 'none';
+  }
+
   // 解卦流程
   dom.btnJieGua.addEventListener('click', async () => {
     if (!hexReady) return;
@@ -987,32 +1016,20 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       renderHexagrams(data.guas);
       renderDryRunDetail(data.guas);
     } else if (event === 'progress') {
-      dom.statusDetail.textContent = dom.statusText.textContent;
-      dom.statusText.textContent = data;
+      renderJieGuaProgress(data);
     } else if (event === 'result') {
-      dom.resultStatus.style.display = 'none';
-      if (!data && dryRunDetailHtml) {
-        plainHtml = dryRunDetailHtml;
-        data = dryRunDetailHtml;
-      } else {
-        plainHtml = data;
-      }
-      showingYiLi = false;
-      dom.btnYiLi.textContent = '易理';
-      dom.resultContent.innerHTML = data;
-      dom.resultContent.style.display = 'block';
-      requestAnimationFrame(syncRightColumnHeight);
+      renderJieGuaResult(data);
     } else if (event === 'yi_li') {
       yiLiHtml = data;
       if (yiLiHtml) dom.resultTools.style.display = 'flex';
     } else if (event === 'error') {
-      dom.statusText.textContent = '出错'; dom.statusDetail.textContent = data;
+      showJieGuaError(data);
     } else if (event === 'done') {
-      dom.resultStatus.style.display = 'none';
+      finishJieGuaStream();
     }
   }
 
-  dom.btnYiLi.addEventListener('click', () => {
+  function toggleYiLiView() {
     if (showingYiLi) {
       if (!plainHtml) return;
       dom.resultContent.innerHTML = plainHtml;
@@ -1026,7 +1043,9 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     }
     dom.resultContent.style.display = 'block';
     requestAnimationFrame(syncRightColumnHeight);
-  });
+  }
+
+  dom.btnYiLi.addEventListener('click', toggleYiLiView);
 
   // SSE 解析
   async function* streamSSE(reader) {
