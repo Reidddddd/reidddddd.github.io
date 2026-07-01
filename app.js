@@ -883,6 +883,13 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     for await (const sse_event of streamSSE(resp.body.getReader())) handler(sse_event.event, sse_event.data);
   }
 
+  function resetQiGuaErrorState() {
+    randomCasting = false;
+    dom.btnQiGua.disabled = !canCast();
+    dom.btnJieGua.style.display = 'none';
+    dom.btnJieGua.disabled = true;
+  }
+
   // 起卦流程
   dom.btnQiGua.addEventListener('click', async () => {
     if (!canCast()) return;
@@ -911,10 +918,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     try {
       await runSSERequest('/api/qi-gua', handleQiGua);
     } catch (error) {
-      randomCasting = false;
       dom.statusText.textContent = '连接出错'; dom.statusDetail.textContent = error.message;
-      dom.btnQiGua.disabled = !canCast();
-      dom.btnJieGua.style.display = 'none'; dom.btnJieGua.disabled = true;
+      resetQiGuaErrorState();
       refresh();
     }
   });
@@ -932,10 +937,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       hexReady = true;
       requestAnimationFrame(syncRightColumnHeight);
     } else if (event === 'error') {
-      randomCasting = false;
       dom.hexPlaceholder.style.display = ''; dom.hexPlaceholder.textContent = data;
-      dom.btnQiGua.disabled = !canCast();
-      dom.btnJieGua.style.display = 'none'; dom.btnJieGua.disabled = true;
+      resetQiGuaErrorState();
     }
   }
 
