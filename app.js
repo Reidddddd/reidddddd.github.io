@@ -942,9 +942,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     }
   }
 
-  // 解卦流程
-  dom.btnJieGua.addEventListener('click', async () => {
-    if (!hexReady) return;
+  function beginJieGua() {
     if (castMode === 'random') stopRandomRoll();
     dom.resultPlaceholder.style.display = 'none';
     dom.resultStatus.style.display = 'flex';
@@ -957,13 +955,23 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     showingYiLi = false;
     dom.btnYiLi.textContent = '易理';
     dom.btnJieGua.disabled = true;
+  }
+
+  function finishJieGua() {
+    dom.btnJieGua.disabled = false;
+  }
+
+  // 解卦流程
+  dom.btnJieGua.addEventListener('click', async () => {
+    if (!hexReady) return;
+    beginJieGua();
 
     try {
       await runSSERequest('/api/jie-gua', handleJieGua);
     } catch (error) {
       dom.statusText.textContent = '连接出错'; dom.statusDetail.textContent = error.message;
     } finally {
-      dom.btnJieGua.disabled = false;
+      finishJieGua();
     }
   });
 
