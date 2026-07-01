@@ -196,6 +196,12 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   renderCustomCastOptions();
 
   function refresh() {
+    renderCastSummary();
+    renderActionButtons();
+    requestAnimationFrame(syncRightColumnHeight);
+  }
+
+  function renderCastSummary() {
     if (castMode === 'lunar') {
       const lunarCast = updateLunarCastPanel();
       dom.castSummaryLine1.textContent = '';
@@ -214,8 +220,6 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       dom.castSummaryLine2.textContent = '随心取数二三，以观其象所成';
       dom.selectedNums.textContent = selected.join(' ');
     }
-    renderActionButtons();
-    requestAnimationFrame(syncRightColumnHeight);
   }
 
   function renderActionButtons() {
