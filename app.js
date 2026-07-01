@@ -51,6 +51,16 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   let timeScrollBusy = false;
   const TIME_LOOP_CYCLES = 5;
   const TIME_LOOP_MID = Math.floor(TIME_LOOP_CYCLES / 2);
+  const RANDOM_ROLL = {
+    minSteps: 20,
+    maxSteps: 28,
+    baseDelay: 26,
+    slowDelay: 335,
+    jitterMin: -10,
+    jitterMax: 24,
+    pauseMin: 760,
+    pauseMax: 960,
+  };
 
   function buildTimeScrolls() {
     dom.hourScroll.innerHTML = buildTimeLoopItems(24, value => pad2(value));
@@ -690,7 +700,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       clearRandomTileState();
       let step = 0;
       let currentValue = null;
-      const totalSteps = Math.round(randomFloat(20, 28));
+      const totalSteps = Math.round(randomFloat(RANDOM_ROLL.minSteps, RANDOM_ROLL.maxSteps));
       const rollTile = () => {
         const value = randomInt1To49();
         currentValue = value;
@@ -700,7 +710,9 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
         if (step < totalSteps) {
           const progress = step / (totalSteps - 1);
           const eased = progress * progress;
-          const delay = 26 + eased * 335 + randomFloat(-10, 24);
+          const delay = RANDOM_ROLL.baseDelay +
+            eased * RANDOM_ROLL.slowDelay +
+            randomFloat(RANDOM_ROLL.jitterMin, RANDOM_ROLL.jitterMax);
           randomTimer = setTimeout(rollTile, Math.round(delay));
         } else {
           randomTimer = null;
@@ -737,7 +749,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       randomPicked.push(n);
       refresh();
       if (i < MAX - 1) {
-        await new Promise(r => setTimeout(r, Math.round(randomFloat(760, 960))));
+        await new Promise(r => setTimeout(r, Math.round(randomFloat(RANDOM_ROLL.pauseMin, RANDOM_ROLL.pauseMax))));
       }
     }
   }
