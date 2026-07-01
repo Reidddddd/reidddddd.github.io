@@ -214,18 +214,20 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       dom.castSummaryLine2.textContent = '随心取数二三，以观其象所成';
       dom.selectedNums.textContent = selected.join(' ');
     }
-    const valid = canCast();
-    if (!hexReady) {
-      if (castMode === 'random' && randomCasting) {
-        dom.btnQiGua.disabled = true;
-        dom.btnJieGua.style.display = 'none';
-        dom.btnJieGua.disabled = true;
-      } else {
-        dom.btnQiGua.disabled = !valid;
-        dom.btnJieGua.style.display = 'none';
-      }
-    }
+    renderActionButtons();
     requestAnimationFrame(syncRightColumnHeight);
+  }
+
+  function renderActionButtons() {
+    if (hexReady) return;
+    if (castMode === 'random' && randomCasting) {
+      dom.btnQiGua.disabled = true;
+      dom.btnJieGua.style.display = 'none';
+      dom.btnJieGua.disabled = true;
+      return;
+    }
+    dom.btnQiGua.disabled = !canCast();
+    dom.btnJieGua.style.display = 'none';
   }
 
   function setCastMode(mode) {
@@ -251,8 +253,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.resultPlaceholder.textContent = `${castModeName()}后，解卦结果显示于此`;
     dom.resultStatus.style.display = 'none';
     dom.resultTools.style.display = 'none';
-    dom.btnQiGua.style.display = ''; dom.btnQiGua.disabled = !canCast();
-    dom.btnJieGua.style.display = 'none'; dom.btnJieGua.disabled = true;
+    dom.btnQiGua.style.display = '';
+    renderActionButtons();
     if (castMode === 'random') resetRandomCast();
     else {
       randomCasting = false;
