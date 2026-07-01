@@ -890,15 +890,10 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.btnJieGua.disabled = true;
   }
 
-  // 起卦流程
-  dom.btnQiGua.addEventListener('click', async () => {
-    if (!canCast()) return;
-    if (castMode === 'lunar' && !prepareLunarCastFromPicker()) {
-      refresh();
-      return;
-    }
+  function beginQiGua() {
     dom.hexPlaceholder.style.display = 'none';
-    dom.resultContent.style.display = 'none'; dom.resultContent.textContent = '';
+    dom.resultContent.style.display = 'none';
+    dom.resultContent.textContent = '';
     dom.resultPlaceholder.style.display = '';
     dom.resultStatus.style.display = 'none';
     dom.resultTools.style.display = 'none';
@@ -908,6 +903,16 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     showingYiLi = false;
     dom.btnYiLi.textContent = '易理';
     hexReady = false;
+  }
+
+  // 起卦流程
+  dom.btnQiGua.addEventListener('click', async () => {
+    if (!canCast()) return;
+    if (castMode === 'lunar' && !prepareLunarCastFromPicker()) {
+      refresh();
+      return;
+    }
+    beginQiGua();
 
     if (castMode === 'random') {
       randomCasting = true;
