@@ -1,3 +1,4 @@
+// 配置与全局状态
 const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   const MAX = 3, MIN = 2;
   let selected = [];
@@ -8,6 +9,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   let dryRunDetailHtml = '';
   let showingYiLi = false;
 
+  // DOM 引用
   const $ = id => document.getElementById(id);
   const dom = {
     grid: $('numberGrid'),
@@ -35,6 +37,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     lunarShangFormula: $('lunarShangFormula'), lunarXiaFormula: $('lunarXiaFormula'),
     lunarDongFormula: $('lunarDongFormula'),
   };
+  // 起卦状态
   let hexReady = false;
   let randomCasting = false;
   let randomPicked = [];
@@ -51,6 +54,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   let timeScrollBusy = false;
   const TIME_LOOP_CYCLES = 5;
   const TIME_LOOP_MID = Math.floor(TIME_LOOP_CYCLES / 2);
+  // 天选数动画参数
   const RANDOM_ROLL = {
     minSteps: 20,
     maxSteps: 28,
@@ -62,11 +66,13 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     pauseMax: 960,
   };
 
+  // 页面初始数据
   fetch(`${API_BASE}/api/lunar-data`, {headers: {'ngrok-skip-browser-warning': '1'}})
     .then(r => r.json())
     .then(data => { renderLunarPanel(data); requestAnimationFrame(syncRightColumnHeight); })
     .catch(() => {});
 
+  // 基础卦象数据
   const JING_GUA = [
     {shu: 1, ming: '乾卦', xiang: '☰', wuXingClass: 'wu-xing-jin'},
     {shu: 2, ming: '兑卦', xiang: '☱', wuXingClass: 'wu-xing-jin'},
@@ -85,6 +91,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     {shu: 5, ming: '五爻'},
     {shu: 6, ming: '上爻'},
   ];
+  // 自选数
   // 生成 1–49 格子
   for (let i = 1; i <= 49; i++) {
     const tile = Object.assign(document.createElement('div'), {className: 'number-tile', textContent: i});
@@ -100,6 +107,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   renderRandomNumberGrid();
   renderCustomCastOptions();
 
+  // 通用刷新与模式切换
   function refresh() {
     renderCastSummary();
     renderActionButtons();
@@ -210,6 +218,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     });
   }
 
+  // 自定义起卦
   function renderCustomCastOptions() {
     renderGuaOptions(dom.customShangOptions, 'shang');
     renderGuaOptions(dom.customXiaOptions, 'xia');
@@ -612,6 +621,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     return ((value % modulo) + modulo) % modulo;
   }
 
+  // 底部农历栏
   function renderLunarPanel(data) {
     const cols = dom.lunarPanel.querySelectorAll('.lunar-col');
     if (data.nong_li) {
@@ -662,6 +672,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     return c;
   }
 
+  // 天选数动画
   function randomInt1To49() {
     if (window.crypto && window.crypto.getRandomValues) {
       const values = new Uint32Array(1);
@@ -764,6 +775,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     }
   }
 
+  // 布局同步
   function syncRightColumnHeight() {
     if (window.matchMedia('(max-width: 860px)').matches) {
       dom.rightCol.style.height = '';
@@ -775,6 +787,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.rightCol.style.height = height ? `${height}px` : '';
   }
 
+  // 页面事件绑定
   window.addEventListener('resize', () => requestAnimationFrame(syncRightColumnHeight));
   window.addEventListener('load', () => {
     refreshLunarPickerNow();
@@ -821,6 +834,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     }
   });
 
+  // 农历时：年份下拉
   let yearDropBase = calendarYear - 4;
 
   function openYearDrop() {
@@ -852,9 +866,11 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       });
     });
   }
+  // 初始化农历时控件
   buildTimeScrolls();
   initLunarPicker();
 
+  // API 请求
   const apiBody = () => JSON.stringify({
     cast_mode: castMode,
     numbers: activeNumbers(),
@@ -867,6 +883,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     for await (const sse_event of streamSSE(resp.body.getReader())) handler(sse_event.event, sse_event.data);
   }
 
+  // 起卦流程
   dom.btnQiGua.addEventListener('click', async () => {
     if (!canCast()) return;
     if (castMode === 'lunar' && !prepareLunarCastFromPicker()) {
@@ -902,6 +919,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     }
   });
 
+  // 起卦 SSE 事件
   function handleQiGua(event, raw) {
     let data; try { data = JSON.parse(raw); } catch (_) { data = raw; }
     if (event === 'hexagrams') {
@@ -921,6 +939,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     }
   }
 
+  // 解卦流程
   dom.btnJieGua.addEventListener('click', async () => {
     if (!hexReady) return;
     if (castMode === 'random') stopRandomRoll();
@@ -945,6 +964,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     }
   });
 
+  // 解卦 SSE 事件
   function handleJieGua(event, raw) {
     let data; try { data = JSON.parse(raw); } catch (_) { data = raw; }
     if (event === 'hexagrams') {
@@ -992,6 +1012,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     requestAnimationFrame(syncRightColumnHeight);
   });
 
+  // SSE 解析
   async function* streamSSE(reader) {
     const decoder = new TextDecoder(); let buffer = '', event_name = '';
     while (true) {
@@ -1006,6 +1027,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     }
   }
 
+  // 卦象与解卦渲染
   function renderHex(gua) {
     return `<div class="hex-col">
       <div class="gua-label">${escapeHtml(gua.label)}</div>
