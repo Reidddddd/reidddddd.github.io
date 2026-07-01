@@ -970,10 +970,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   function renderJieGuaResult(data) {
     dom.resultStatus.style.display = 'none';
     plainHtml = data || '';
-    updateResultTabs();
-    if (plainHtml) selectResultView('baihua');
-    else if (guwenHtml) selectResultView('guwen');
-    else if (yiLiHtml) selectResultView('yili');
+    revealCompleteResultTabs();
   }
 
   function showJieGuaError(data) {
@@ -1011,9 +1008,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       renderJieGuaResult(data);
     } else if (event === 'yi_li') {
       yiLiHtml = data;
-      updateResultTabs();
-      if (yiLiHtml) dom.resultTools.style.display = 'flex';
-      if (activeResultView === 'yili') selectResultView('yili');
+      revealCompleteResultTabs();
     } else if (event === 'error') {
       showJieGuaError(data);
     } else if (event === 'done') {
@@ -1035,6 +1030,16 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       btn.classList.toggle('active', view === activeResultView);
       btn.disabled = !hasContent;
     });
+  }
+
+  function revealCompleteResultTabs() {
+    updateResultTabs();
+    if (!plainHtml || !yiLiHtml) return;
+    if (dom.resultTools.style.display === 'none' || !resultHtmlForView(activeResultView)) {
+      selectResultView('baihua');
+    } else {
+      selectResultView(activeResultView);
+    }
   }
 
   function selectResultView(view) {
@@ -1092,12 +1097,10 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     const hasZhouYi = guas.some(gua => gua.zhou_yi);
     if (hasZhouYi) {
       guwenHtml = `<div class="gua-detail-cols">${guas.map(renderGuaDetail).join('')}</div>`;
-      dom.resultPlaceholder.style.display = 'none';
-      selectResultView('guwen');
     } else {
       guwenHtml = '';
-      updateResultTabs();
     }
+    updateResultTabs();
   }
 
   function renderGuaDetail(gua) {
