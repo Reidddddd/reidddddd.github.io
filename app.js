@@ -538,7 +538,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     const shangTotal = yearShu + monthShu + dayShu;
     const xiaTotal = shangTotal + hourShu;
     const dongTotal = xiaTotal + minuteShu;
-    const numbers = [modShu(shangTotal, 8), modShu(xiaTotal, 8), modShu(dongTotal, 6)];
+    const numbers = [shangTotal, xiaTotal, dongTotal];
     const solarDisplay = `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 
     return {
@@ -610,11 +610,6 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
 
   function hourBranchName(hour) {
     return BRANCHES[Math.floor(((hour + 1) % 24) / 2)];
-  }
-
-  function modShu(total, modulo) {
-    const rest = total % modulo;
-    return rest === 0 ? modulo : rest;
   }
 
   function positiveMod(value, modulo) {
