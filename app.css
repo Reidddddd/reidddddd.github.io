@@ -1,3 +1,4 @@
+/* 主题变量 */
 :root {
     --bg: #f5f0e8;
     --card: rgba(255, 254, 249, 0.65);
@@ -17,6 +18,7 @@
     --shadow: 0 1px 8px rgba(0,0,0,0.05);
   }
 
+  /* 全局基础 */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { min-height: 100%; overflow-y: auto; }
 
@@ -29,6 +31,7 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* 背景装饰 */
   .bg-temple { position: fixed; inset: 0; pointer-events: none; z-index: 0; font-variant-emoji: text; }
   .bg-temple .tai-ji {
     --s: 34vmin;
@@ -59,6 +62,7 @@
   .gua-s  { top: 97%; left: 50%; }
   .gua-se { top: 97%; left: 98%; }
 
+  /* 页面布局 */
   .footer-text { font-size: 0.85rem; color: var(--text-dim); padding: 0.25rem 0 0; }
   .container { width: min(100%, 1320px); margin: 0 auto; position: relative; z-index: 1; }
 
@@ -68,14 +72,14 @@
 
   .main-row { display: flex; gap: 0.8rem; align-items: flex-start; }
 
-  /* 共享卡片 */
+  /* 通用卡片 */
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); }
   .card-padded { padding: 0.7rem; }
 
   .left-col { flex: 0 0 380px; display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
   .right-col { flex: 1; display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; min-height: 0; overflow: hidden; align-self: flex-start; }
 
-  /* 输入 */
+  /* 输入区 */
   .input-section { display: flex; flex-direction: column; gap: 0.45rem; }
   .input-group { display: flex; flex-direction: column; gap: 0.2rem; }
   .input-group label { font-size: 0.9rem; font-weight: 600; color: var(--text-soft); }
@@ -87,7 +91,7 @@
   .input-group input:focus { border-color: var(--accent-light); }
   .selected-nums { font-size: 1.1rem; font-weight: 700; color: var(--accent); min-height: 1.6rem; }
 
-  /* 起卦 */
+  /* 起卦公共区 */
   .cast-section {
     margin-bottom: 0.55rem; padding-bottom: 0.55rem;
     border-bottom: 1px dotted var(--border);
@@ -107,6 +111,8 @@
   .cast-switch-btn.active { background: var(--accent); color: #fff; }
   .cast-switch-btn:disabled { cursor: default; opacity: 0.7; }
   .mode-panel[hidden] { display: none; }
+
+  /* 农历时起卦 */
   .lunar-cast-panel {
     display: flex; flex-direction: column; gap: 0.45rem;
     background: rgba(250, 247, 240, 0.72);
@@ -265,6 +271,8 @@
   .lunar-cast-panel.is-error .lunar-cast-error { display: block; }
   .lunar-cast-error { display: none; font-size: 0.82rem; }
   .lunar-cast-panel:not(.is-error) .lunar-cast-error { display: none; }
+
+  /* 天选数 */
   .random-number-grid {
     display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
   }
@@ -289,6 +297,8 @@
     box-shadow: 0 0 0 2px rgba(139, 37, 0, 0.12), 0 0.65rem 1rem rgba(139, 37, 0, 0.12);
     transform: scale(1.04);
   }
+
+  /* 自定义起卦 */
   .custom-cast-panel {
     display: flex; flex-direction: column; gap: 0.5rem;
     background: rgba(250, 247, 240, 0.72);
@@ -327,6 +337,8 @@
   }
   .custom-gua-btn.selected span,
   .custom-gua-btn.selected strong { color: var(--tile-selected-text); }
+
+  /* 小屏：起卦控件 */
   @media (max-width: 460px) {
     .cast-title-row { align-items: flex-start; flex-direction: column; }
     .cast-switch { width: 100%; }
@@ -353,7 +365,7 @@
   .btn-secondary { background: transparent; color: var(--text-dim); border: 1.5px solid var(--border); }
   .btn-secondary:hover { background: var(--tile-hover); }
 
-  /* 数字网格 */
+  /* 自选数网格 */
   .grid-section { display: flex; flex-direction: column; min-width: 0; }
   .number-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
   .number-tile {
@@ -378,7 +390,7 @@
   }
   .number-tile:active { transform: scale(0.95); }
 
-  /* 农历面板 */
+  /* 底部农历栏 */
   .lunar-panel { display: flex; gap: 0.5rem; align-items: stretch; }
   .lunar-col { flex: 1; text-align: center; }
   .lunar-top,
@@ -391,7 +403,7 @@
   .wu-xing-huo { color: #c0392b; }
   .wu-xing-tu { color: #8b6914; }
 
-  /* 卦象 */
+  /* 卦象展示 */
   .hex-section { min-height: 11rem; }
   .hex-section h2 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.3rem; color: var(--text-soft); }
   .placeholder { color: var(--placeholder); font-size: 0.9rem; text-align: center; padding: 2.5rem 1rem; }
@@ -448,7 +460,7 @@
   .yao-item.dong-yao span,
   .yao-item.dong-yao p { color: #8b5f00; font-weight: 700; }
 
-  /* 解卦 */
+  /* 解卦结果 */
   .result-section { flex: 1 1 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
   .result-section h2 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.3rem; flex-shrink: 0; color: var(--text-soft); }
   .result-status { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.3rem; flex-shrink: 0; }
@@ -478,6 +490,7 @@
   .result-content hr { border: none; border-top: 1px solid var(--border); margin: 0.65rem 0; }
   .result-content code { background: var(--tile-bg); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.86rem; }
 
+  /* 小屏：整体布局 */
   @media (max-width: 860px) {
     .main-row { flex-direction: column; overflow: visible; }
     .left-col { flex: none; width: 100%; }
