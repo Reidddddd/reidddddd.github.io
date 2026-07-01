@@ -862,6 +862,11 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     wai_ying: dom.waiying.value.trim(),
   });
 
+  async function runSSERequest(path, handler) {
+    const resp = await fetch(`${API_BASE}${path}`, {method: 'POST', headers: {'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1'}, body: apiBody()});
+    for await (const sse_event of streamSSE(resp.body.getReader())) handler(sse_event.event, sse_event.data);
+  }
+
   dom.btnQiGua.addEventListener('click', async () => {
     if (!canCast()) return;
     if (castMode === 'lunar' && !prepareLunarCastFromPicker()) {
@@ -887,8 +892,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     }
 
     try {
-      const resp = await fetch(`${API_BASE}/api/qi-gua`, {method: 'POST', headers: {'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1'}, body: apiBody()});
-      for await (const sse_event of streamSSE(resp.body.getReader())) handleQiGua(sse_event.event, sse_event.data);
+      await runSSERequest('/api/qi-gua', handleQiGua);
     } catch (error) {
       randomCasting = false;
       dom.statusText.textContent = '连接出错'; dom.statusDetail.textContent = error.message;
@@ -933,8 +937,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.btnJieGua.disabled = true;
 
     try {
-      const resp = await fetch(`${API_BASE}/api/jie-gua`, {method: 'POST', headers: {'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1'}, body: apiBody()});
-      for await (const sse_event of streamSSE(resp.body.getReader())) handleJieGua(sse_event.event, sse_event.data);
+      await runSSERequest('/api/jie-gua', handleJieGua);
     } catch (error) {
       dom.statusText.textContent = '连接出错'; dom.statusDetail.textContent = error.message;
     } finally {
