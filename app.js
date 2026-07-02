@@ -54,6 +54,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   let jieGuaAnimating = false;
   let jieGuaFinishPromise = null;
   const DIVINING_BG_SPEED = 0.43;
+  const RESULT_REVEAL_DELAY = 1000;
   let LUNAR_CAST = null;
   let lunarCastRevealed = false;
   let lunarPickerFollowsNow = true;
@@ -994,6 +995,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       await settleDiviningBackground();
       jieGuaAnimating = false;
       if (showResult) {
+        await delay(RESULT_REVEAL_DELAY);
         revealCompleteResultTabs();
       } else {
         dom.resultStatus.style.display = '';
@@ -1004,6 +1006,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     })();
     return jieGuaFinishPromise;
   }
+
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   function startDiviningBackground() {
     if (!dom.bgTemple || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
