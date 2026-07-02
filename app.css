@@ -468,7 +468,7 @@
   .result-section h2 { font-size: 0.95rem; font-weight: 600; line-height: 1; margin: 0; color: var(--text-soft); }
   .result-status { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.3rem; flex-shrink: 0; }
   .result-tools {
-    display: flex; justify-content: flex-end; flex-shrink: 0;
+    display: flex; justify-content: flex-end; align-items: center; flex-shrink: 0; flex-wrap: wrap;
     gap: 0.55rem; transform: translateY(0.04rem);
   }
   .result-tab {
@@ -483,6 +483,13 @@
   .result-tab.active { color: var(--accent); }
   .result-tab.active::after { background: var(--accent); }
   .result-tab:disabled { cursor: default; opacity: 0.45; }
+  .result-save {
+    border: none; background: transparent; color: var(--text-dim);
+    font: inherit; font-size: 0.86rem; font-weight: 600; line-height: 1;
+    padding: 0 0 0.16rem; cursor: pointer; transition: color 0.15s;
+  }
+  .result-save:hover:not(:disabled) { color: var(--accent); }
+  .result-save:disabled { cursor: default; opacity: 0.45; }
   .spinner-sm {
     display: none; width: 16px; height: 16px;
     border: 2px solid var(--border); border-top-color: var(--accent);
