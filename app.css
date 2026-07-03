@@ -68,9 +68,24 @@
   .footer-text { font-size: 0.85rem; color: var(--text-dim); padding: 0.25rem 0 0; }
   .container { width: min(100%, 1320px); margin: 0 auto; position: relative; z-index: 1; }
 
-  .header { margin-bottom: 0.5rem; }
-  .header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); }
-  .header p { color: var(--text-dim); font-size: 0.85rem; }
+  .header {
+    margin-bottom: 0.5rem;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem;
+  }
+  .header-title { min-width: 0; }
+  .header h1 { font-size: 1.6rem; line-height: 1.2; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); }
+  .header p,
+  .support-link {
+    color: var(--text-dim); font-family: inherit; font-size: 0.85rem; font-weight: 400;
+    line-height: 1.2; letter-spacing: 0;
+  }
+  .header-action {
+    display: grid; grid-template-rows: 1.92rem auto; justify-items: end; flex-shrink: 0;
+  }
+  .support-link {
+    display: block; grid-row: 2; padding: 0; text-decoration: none;
+  }
+  .support-link:hover { color: var(--accent); }
 
   .main-row { display: flex; gap: 0.8rem; align-items: flex-start; }
 
@@ -516,6 +531,9 @@
 
   /* 小屏：整体布局 */
   @media (max-width: 860px) {
+    .header { align-items: flex-start; gap: 0.55rem; }
+    .header-action { grid-template-rows: 1.92rem auto; }
+    .support-link { padding: 0; }
     .main-row { flex-direction: column; overflow: visible; }
     .left-col { flex: none; width: 100%; }
     .right-col { flex: none; width: 100%; height: auto !important; overflow: visible; }
