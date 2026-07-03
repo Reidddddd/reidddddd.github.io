@@ -137,7 +137,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       dom.castSummaryLine2.textContent = '三数既得，象从此生';
       dom.selectedNums.textContent = randomPicked.join(' ');
     } else if (castMode === 'custom') {
-      dom.castSummaryLine1.textContent = '自取上下卦，指定动爻';
+      dom.castSummaryLine1.textContent = '上下卦由心，动爻随意定';
       dom.castSummaryLine2.textContent = '';
       dom.selectedNums.textContent = activeNumbers().join(' ');
     } else {
