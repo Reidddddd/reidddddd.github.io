@@ -1261,9 +1261,38 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     body {
       font-family: "PingFang SC", "Noto Serif SC", "Source Han Serif SC", "Hiragino Mincho Pro", "Songti SC", serif;
       background: radial-gradient(ellipse at 50% 30%, #faf6ec 0%, #efe8d6 60%, #e0d8c0 100%);
-      color: var(--text-dim); min-height: 100vh; padding: 0.8rem;
+      color: var(--text-dim); min-height: 100vh; padding: 0.8rem; overflow-x: hidden;
     }
-    .container { width: min(100%, 980px); margin: 0 auto; }
+    .bg-temple { position: fixed; inset: 0; pointer-events: none; z-index: 0; font-variant-emoji: text; }
+    .bg-temple .tai-ji {
+      --s: 34vmin;
+      position: absolute; top: 50%; left: 50%; translate: -50% -50%; rotate: 180deg;
+      width: var(--s); height: var(--s); border-radius: 50%; opacity: 0.28;
+      background: linear-gradient(to left, #f0e6d0 50%, #b8a080 50%);
+    }
+    .bg-temple .tai-ji::before {
+      content: ''; position: absolute; width: 50%; height: 50%;
+      top: 0; left: 25%; border-radius: 50%;
+      background: radial-gradient(circle at 50% 50%, #f0e6d0 14%, #b8a080 15%);
+    }
+    .bg-temple .tai-ji::after {
+      content: ''; position: absolute; width: 50%; height: 50%;
+      bottom: 0; left: 25%; border-radius: 50%;
+      background: radial-gradient(circle at 50% 50%, #b8a080 14%, #f0e6d0 15%);
+    }
+    .bg-temple .gua {
+      position: absolute; font-size: 2.2rem; color: #8b7860; opacity: 0.35;
+      transform: translate(-50%, -50%);
+    }
+    .gua-nw { top: 3%; left: 3%; }
+    .gua-n { top: 3%; left: 50%; }
+    .gua-ne { top: 3%; left: 97%; }
+    .gua-w { top: 50%; left: 3%; }
+    .gua-e { top: 50%; left: 97%; }
+    .gua-sw { top: 97%; left: 3%; }
+    .gua-s { top: 97%; left: 50%; }
+    .gua-se { top: 97%; left: 97%; }
+    .container { width: min(100%, 980px); margin: 0 auto; padding-bottom: 3rem; position: relative; z-index: 1; }
     .report-title { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 0.5rem; }
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); }
     .card-padded { padding: 0.7rem; }
@@ -1312,6 +1341,17 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   </style>
 </head>
 <body>
+  <div class="bg-temple">
+    <div class="tai-ji"></div>
+    <span class="gua gua-n">☰︎</span>
+    <span class="gua gua-nw">☱︎</span>
+    <span class="gua gua-w">☲︎</span>
+    <span class="gua gua-sw">☳︎</span>
+    <span class="gua gua-s">☷︎</span>
+    <span class="gua gua-se">☶︎</span>
+    <span class="gua gua-e">☵︎</span>
+    <span class="gua gua-ne">☴︎</span>
+  </div>
   <main class="container">
     <h1 class="report-title">${escapeHtml(castSnapshot.question)}</h1>
     <section class="card card-padded report-section">

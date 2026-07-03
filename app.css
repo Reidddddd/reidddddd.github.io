@@ -57,12 +57,12 @@
   }
   .gua-nw { top: 3%;  left: 3%; }
   .gua-n  { top: 3%;  left: 50%; }
-  .gua-ne { top: 3%;  left: 98%; }
+  .gua-ne { top: 3%;  left: 97%; }
   .gua-w  { top: 50%; left: 3%; }
-  .gua-e  { top: 50%; left: 98%; }
+  .gua-e  { top: 50%; left: 97%; }
   .gua-sw { top: 97%; left: 3%; }
   .gua-s  { top: 97%; left: 50%; }
-  .gua-se { top: 97%; left: 98%; }
+  .gua-se { top: 97%; left: 97%; }
 
   /* 页面布局 */
   .footer-text { font-size: 0.85rem; line-height: 1.2; color: var(--text-dim); padding: 0; }
