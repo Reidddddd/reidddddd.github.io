@@ -114,6 +114,7 @@
   .right-col { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; min-height: 0; overflow: hidden; align-self: flex-start; }
   .footer-left { grid-column: 1; grid-row: 2; }
   .footer-right { grid-column: 2; grid-row: 2; text-align: right; }
+  .mobile-gua-note { display: none; }
 
   /* 输入区 */
   .input-section { display: flex; flex-direction: column; gap: 0.45rem; }
@@ -551,10 +552,12 @@
   /* 小屏：整体布局 */
   @media (max-width: 860px) {
     .header { align-items: flex-start; gap: 0.55rem; }
+    .header-action { display: none; }
     .support-link { padding: 0; }
     .main-row { grid-template-columns: 1fr; row-gap: 0.6rem; overflow: visible; }
     .left-col { grid-column: 1; grid-row: 1; width: 100%; }
-    .footer-left { grid-column: 1; grid-row: 2; }
+    .footer-left { grid-column: 1; grid-row: 2; display: flex; align-items: baseline; justify-content: space-between; gap: 0.8rem; }
+    .mobile-gua-note { display: block; flex-shrink: 0; text-align: right; }
     .right-col { grid-column: 1; grid-row: 3; width: 100%; height: auto !important; overflow: visible; }
     .footer-right { grid-column: 1; grid-row: 4; text-align: right; }
     .result-section { flex: none; min-height: 18rem; max-height: none; overflow: visible; }
