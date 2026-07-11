@@ -20,7 +20,7 @@
 
   /* 全局基础 */
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html { min-height: 100%; overflow-y: auto; }
+  html { min-height: 100%; overflow-y: auto; font-size: 16px; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
   body {
     font-family: "PingFang SC", "Noto Serif SC", "Source Han Serif SC", "Hiragino Mincho Pro", "Songti SC", serif;
@@ -65,7 +65,7 @@
   .gua-se { top: 97%; left: 97%; }
 
   /* 页面布局 */
-  .footer-text { font-size: 0.85rem; line-height: 1.2; color: var(--text-dim); padding: 0; }
+  .footer-text { font-size: 0.9rem; line-height: 1.2; color: var(--text-dim); padding: 0; }
   .container { width: min(100%, 1320px); margin: 0 auto; position: relative; z-index: 1; }
 
   .header {
@@ -81,7 +81,7 @@
   .header p { grid-column: 1; grid-row: 2; min-width: 0; }
   .header p,
   .support-link {
-    color: var(--text-dim); font-family: inherit; font-size: 0.85rem; font-weight: 400;
+    color: var(--text-dim); font-family: inherit; font-size: 0.9rem; font-weight: 400;
     line-height: 1.2; letter-spacing: 0;
   }
   .header-action {
@@ -557,7 +557,7 @@
     .main-row { grid-template-columns: 1fr; row-gap: 0.6rem; overflow: visible; }
     .left-col { grid-column: 1; grid-row: 1; width: 100%; }
     .footer-left { grid-column: 1; grid-row: 2; }
-    .mobile-gua-note { display: block; grid-column: 1; grid-row: 4; justify-self: end; text-align: right; }
+    .mobile-gua-note { display: block; font-size: 0.9rem; grid-column: 1; grid-row: 4; justify-self: end; text-align: right; }
     .right-col { grid-column: 1; grid-row: 3; width: 100%; height: auto !important; overflow: visible; }
     .footer-right { grid-column: 1; grid-row: 2; text-align: right; }
     .result-head { flex-wrap: wrap; }
