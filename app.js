@@ -40,6 +40,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     lunarShang: $('lunarShang'), lunarXia: $('lunarXia'), lunarDong: $('lunarDong'),
     lunarShangFormula: $('lunarShangFormula'), lunarXiaFormula: $('lunarXiaFormula'),
     lunarDongFormula: $('lunarDongFormula'),
+    confirmModal: $('confirmModal'), confirmMessage: $('confirmMessage'), confirmOk: $('confirmOk'), confirmCancel: $('confirmCancel'),
   };
   // 起卦状态
   let hexReady = false;
@@ -52,6 +53,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   let diviningBgLastTime = 0;
   let diviningBgStartTime = 0;
   let jieGuaAnimating = false;
+  let resultsLocked = false;
   let jieGuaFinishPromise = null;
   const DIVINING_BG_SPEED = 0.43;
   const RESULT_REVEAL_DELAY = 1000;
@@ -109,6 +111,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     const tile = Object.assign(document.createElement('div'), {className: 'number-tile', textContent: i});
     tile.dataset.value = i;
     tile.addEventListener('click', () => {
+      if (resultsLocked) return;
       if (selected.length < MAX) selected.push(i);
       syncNumberTileStates();
       if (hexReady) clearCastOutput();
@@ -159,7 +162,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.btnJieGua.style.display = 'none';
   }
 
-  function setCastMode(mode) {
+  async function setCastMode(mode) {
+    if (resultsLocked) return;
     if (mode === castMode) return;
     castMode = mode;
     dom.modeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.castMode === mode));
@@ -170,6 +174,24 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     if (mode === 'lunar') refreshLunarPickerNow();
     clearCastOutput();
     refresh();
+  }
+
+  function lockCastControls() {
+    resultsLocked = true;
+    dom.btnQiGua.disabled = true;
+    dom.btnJieGua.disabled = true;
+  }
+  function unlockCastControls() {
+    resultsLocked = false;
+  }
+
+  function showConfirm(message) {
+    return new Promise(resolve => {
+      dom.confirmMessage.textContent = message;
+      dom.confirmModal.style.display = 'flex';
+      dom.confirmOk.onclick = () => { dom.confirmModal.style.display = 'none'; resolve(true); };
+      dom.confirmCancel.onclick = () => { dom.confirmModal.style.display = 'none'; resolve(false); };
+    });
   }
 
   function clearCastOutput() {
@@ -255,6 +277,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     </button>`).join('');
     container.querySelectorAll('.custom-gua-btn').forEach(btn => {
       btn.addEventListener('click', () => {
+        if (resultsLocked) return;
         customCast[role] = Number(btn.dataset.value);
         if (hexReady) clearCastOutput();
         refreshCustomCastOptions();
@@ -269,6 +292,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     </button>`).join('');
     dom.customDongOptions.querySelectorAll('.custom-yao-btn').forEach(btn => {
       btn.addEventListener('click', () => {
+        if (resultsLocked) return;
         customCast.dong = Number(btn.dataset.value);
         if (hexReady) clearCastOutput();
         refreshCustomCastOptions();
@@ -465,6 +489,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   }
 
   function handleDayClick(btn) {
+    if (resultsLocked) return;
     const day = Number(btn.dataset.day);
     const monthType = btn.dataset.month;
     if (monthType === 'prev') {
@@ -810,6 +835,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   // 页面事件绑定
   window.addEventListener('resize', () => requestAnimationFrame(syncRightColumnHeight));
   window.addEventListener('load', () => {
+
     refreshLunarPickerNow();
     requestAnimationFrame(syncRightColumnHeight);
   });
@@ -818,7 +844,13 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     refresh();
   });
 
-  dom.btnReset.addEventListener('click', () => {
+  dom.btnReset.addEventListener('click', async () => {
+    if (jieGuaAnimating || dom.resultContent.style.display !== 'none') {
+      if (!(await showConfirm('卦解存乎，重起即散。'))) return;
+    }
+    unlockCastControls();
+    dom.question.value = '';
+    dom.waiying.value = '';
     selected = [];
     syncNumberTileStates();
     if (castMode === 'lunar') setLunarPickerToNow();
@@ -829,12 +861,14 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   dom.question.addEventListener('input', refresh);
   dom.modeButtons.forEach(btn => btn.addEventListener('click', () => setCastMode(btn.dataset.castMode)));
   dom.calPrev.addEventListener('click', () => {
+    if (resultsLocked) return;
     dom.calYearDrop.hidden = true;
     calendarMonth -= 1;
     if (calendarMonth < 0) { calendarMonth = 11; calendarYear -= 1; }
     renderCalendar();
   });
   dom.calNext.addEventListener('click', () => {
+    if (resultsLocked) return;
     dom.calYearDrop.hidden = true;
     calendarMonth += 1;
     if (calendarMonth > 11) { calendarMonth = 0; calendarYear += 1; }
@@ -913,6 +947,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   }
 
   function beginQiGua() {
+    unlockCastControls();
     dom.hexPlaceholder.style.display = 'none';
     hexagramsHtml = '';
     castSnapshot = null;
@@ -931,6 +966,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
 
   // 起卦流程
   dom.btnQiGua.addEventListener('click', async () => {
+    if (resultsLocked) return;
     if (!canCast()) return;
     if (castMode === 'lunar' && !prepareLunarCastFromPicker()) {
       refresh();
@@ -997,14 +1033,15 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       await settleDiviningBackground();
       jieGuaAnimating = false;
       if (showResult) {
+        lockCastControls();
         await delay(RESULT_REVEAL_DELAY);
         revealCompleteResultTabs();
       } else {
         dom.resultStatus.style.display = '';
         dom.statusText.textContent = statusText;
         dom.statusDetail.textContent = statusDetail;
+        dom.btnJieGua.disabled = false;
       }
-      dom.btnJieGua.disabled = false;
     })();
     return jieGuaFinishPromise;
   }
@@ -1501,3 +1538,4 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#39;');
   }
+

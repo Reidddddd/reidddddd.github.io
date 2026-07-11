@@ -571,3 +571,24 @@
     .gua-detail-cols { grid-template-columns: repeat(5, minmax(8.8rem, 1fr)); overflow-x: auto; }
     .gua-detail-col { height: auto; max-height: 18rem; }
   }
+
+/* 自定义确认弹窗 */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(61, 50, 38, 0.35);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+  padding: 1.5rem 1.8rem 1.2rem; max-width: 320px; width: 90%;
+  text-align: center;
+}
+.modal-message {
+  font-size: 0.9rem; font-weight: 600; color: var(--text-soft); margin-bottom: 1.2rem;
+  line-height: 1.6;
+}
+.modal-btns {
+  display: flex; gap: 0.6rem; justify-content: center;
+}
+.modal-btns .btn { font-size: 0.85rem; }
