@@ -560,7 +560,10 @@
     .mobile-gua-note { display: block; grid-column: 1; grid-row: 2; justify-self: end; text-align: right; }
     .right-col { grid-column: 1; grid-row: 3; width: 100%; height: auto !important; overflow: visible; }
     .footer-right { grid-column: 1; grid-row: 4; text-align: right; }
-    .result-section { flex: none; min-height: 18rem; max-height: none; overflow: visible; }
+    .result-head { flex-wrap: wrap; }
+    .result-tools { transform: none; }
+    .result-section { flex: none; min-height: 18rem; max-height: none; overflow: visible; position: relative; }
+    #btnSaveResult { position: absolute; bottom: 0.6rem; right: 0.6rem; }
     .result-content { flex: none; max-height: none; overflow: visible; padding-right: 0; }
     .hex-cols { gap: 3px; }
     .hex-col { min-width: 55px; padding: 0.3rem 0.2rem; }
