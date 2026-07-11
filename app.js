@@ -517,6 +517,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       showLunarError('请选择有效的公历日期和时刻。');
       return false;
     }
+    // 早子时：23:00 起日期按次日计
+    if (date.getHours() >= 23) date.setDate(date.getDate() + 1);
     const data = buildLunarData(date);
     if (!data) {
       showLunarError('当前浏览器暂不支持农历换算。');
