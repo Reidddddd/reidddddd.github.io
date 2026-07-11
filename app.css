@@ -557,9 +557,9 @@
     .main-row { grid-template-columns: 1fr; row-gap: 0.6rem; overflow: visible; }
     .left-col { grid-column: 1; grid-row: 1; width: 100%; }
     .footer-left { grid-column: 1; grid-row: 2; }
-    .mobile-gua-note { display: block; grid-column: 1; grid-row: 2; justify-self: end; text-align: right; }
+    .mobile-gua-note { display: block; grid-column: 1; grid-row: 4; justify-self: end; text-align: right; }
     .right-col { grid-column: 1; grid-row: 3; width: 100%; height: auto !important; overflow: visible; }
-    .footer-right { grid-column: 1; grid-row: 4; text-align: right; }
+    .footer-right { grid-column: 1; grid-row: 2; text-align: right; }
     .result-head { flex-wrap: wrap; }
     .result-tools { transform: none; }
     .result-section { flex: none; min-height: 18rem; max-height: none; overflow: visible; position: relative; }
