@@ -1109,8 +1109,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
 
   function renderJieGuaProgress(data) {
     dom.resultStatus.style.display = '';
-    dom.statusDetail.textContent = dom.statusText.textContent;
     dom.statusText.textContent = data;
+    dom.statusDetail.textContent = '';
   }
 
   function appendJieGuaStreamText(view, data) {
