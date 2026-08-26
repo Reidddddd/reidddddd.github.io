@@ -938,9 +938,39 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
 
   async function runSSERequest(path, handler) {
     const resp = await fetch(`${API_BASE}${path}`, {method: 'POST', headers: {'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1'}, body: apiBody()});
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if (!resp.ok) {
+      let errorMessage = '';
+      if (resp.body) {
+        for await (const sse_event of streamSSE(resp.body.getReader())) {
+          if (sse_event.event === 'error') {
+            let data;
+            try { data = JSON.parse(sse_event.data); } catch (_) { data = sse_event.data; }
+            errorMessage = resultPayloadHtml(data) || String(data || '');
+          }
+        }
+      }
+      const fallbackMessage = resp.status === 429
+        ? '今天已达次数上限，二十四小时后再来'
+        : `HTTP ${resp.status}`;
+      const error = new Error(errorMessage || fallbackMessage);
+      error.status = resp.status;
+      throw error;
+    }
     if (!resp.body) throw new Error('响应体为空');
     for await (const sse_event of streamSSE(resp.body.getReader())) handler(sse_event.event, sse_event.data);
+  }
+
+  function requestErrorStatus(error) {
+    if (error.status === 429) {
+      return {
+        statusText: error.message || '今日次数已达上限',
+        statusDetail: '',
+      };
+    }
+    return {
+      statusText: '连接出错',
+      statusDetail: error.message,
+    };
   }
 
   function resetQiGuaErrorState() {
@@ -991,7 +1021,9 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     try {
       await runSSERequest('/api/qi-gua', handleQiGua);
     } catch (error) {
-      dom.statusText.textContent = '连接出错'; dom.statusDetail.textContent = error.message;
+      const errorStatus = requestErrorStatus(error);
+      dom.statusText.textContent = errorStatus.statusText;
+      dom.statusDetail.textContent = errorStatus.statusDetail;
       resetQiGuaErrorState();
       refresh();
     }
@@ -1173,10 +1205,11 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
         await jieGuaFinishPromise;
         return;
       }
+      const errorStatus = requestErrorStatus(error);
       await finishJieGua({
         showResult: false,
-        statusText: '连接出错',
-        statusDetail: error.message,
+        statusText: errorStatus.statusText,
+        statusDetail: errorStatus.statusDetail,
       });
     }
   });
