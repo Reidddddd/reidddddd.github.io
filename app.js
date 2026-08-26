@@ -6,6 +6,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   let customCast = {shang: 1, xia: 1, dong: 1};
   let plainHtml = '';
   let yiLiHtml = '';
+  let plainStreamText = '';
+  let yiLiStreamText = '';
   let guwenHtml = '';
   let hexagramsHtml = '';
   let castSnapshot = null;
@@ -216,6 +218,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     if (castMode === 'lunar') hideLunarCastResult();
     plainHtml = '';
     yiLiHtml = '';
+    plainStreamText = '';
+    yiLiStreamText = '';
     guwenHtml = '';
     activeResultView = 'guwen';
     updateResultTabs();
@@ -958,6 +962,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.resultTools.style.display = 'none';
     plainHtml = '';
     yiLiHtml = '';
+    plainStreamText = '';
+    yiLiStreamText = '';
     guwenHtml = '';
     activeResultView = 'guwen';
     updateResultTabs();
@@ -1102,12 +1108,34 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   }
 
   function renderJieGuaProgress(data) {
+    dom.resultStatus.style.display = '';
     dom.statusDetail.textContent = dom.statusText.textContent;
     dom.statusText.textContent = data;
   }
 
+  function appendJieGuaStreamText(view, data) {
+    const text = resultPayloadText(data);
+    if (!text) return;
+    if (view === 'yili') {
+      yiLiStreamText += text;
+      renderJieGuaStreamText(yiLiStreamText);
+    } else {
+      plainStreamText += text;
+      renderJieGuaStreamText(plainStreamText);
+    }
+  }
+
+  function renderJieGuaStreamText(text) {
+    dom.resultPlaceholder.style.display = 'none';
+    dom.resultContent.classList.add('is-streaming');
+    dom.resultContent.textContent = text;
+    dom.resultContent.style.display = 'block';
+    requestAnimationFrame(syncRightColumnHeight);
+  }
+
   function renderJieGuaResult(data) {
     dom.resultStatus.style.display = 'none';
+    dom.resultContent.classList.remove('is-streaming');
     plainHtml = resultPayloadHtml(data);
     finishJieGuaWhenReady();
   }
@@ -1161,6 +1189,12 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       renderGuwenDetail(data.guas);
     } else if (event === 'progress') {
       renderJieGuaProgress(data);
+    } else if (event === 'thinking') {
+      renderJieGuaProgress(data);
+    } else if (event === 'yi_li_chunk') {
+      appendJieGuaStreamText('yili', data);
+    } else if (event === 'result_chunk') {
+      appendJieGuaStreamText('baihua', data);
     } else if (event === 'result') {
       renderJieGuaResult(data);
     } else if (event === 'yi_li') {
@@ -1181,6 +1215,12 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     if (typeof data === 'string') return data;
     if (!data || typeof data !== 'object') return '';
     return data.html || data.content || data.result || data.text || '';
+  }
+
+  function resultPayloadText(data) {
+    if (typeof data === 'string') return data;
+    if (!data || typeof data !== 'object') return '';
+    return data.text || data.content || '';
   }
 
   function resultHtmlForView(view) {
@@ -1229,6 +1269,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     updateResultTabs();
     dom.resultTools.style.display = 'flex';
     dom.resultPlaceholder.style.display = 'none';
+    dom.resultContent.classList.remove('is-streaming');
     dom.resultContent.innerHTML = html;
     dom.resultContent.style.display = 'block';
     requestAnimationFrame(syncRightColumnHeight);
@@ -1538,4 +1579,3 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#39;');
   }
-
