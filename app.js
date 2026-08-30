@@ -23,7 +23,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     question: $('question'), waiying: $('waiying'),
     hexPlaceholder: $('hexPlaceholder'), hexCols: $('hexCols'),
     resultPlaceholder: $('resultPlaceholder'), resultContent: $('resultContent'),
-    resultStatus: $('resultStatus'), resultTools: $('resultTools'),
+    resultStatus: $('resultStatus'), resultTools: $('resultTools'), statusNotice: $('statusNotice'),
     resultViewButtons: Array.from(document.querySelectorAll('[data-result-view]')),
     statusText: $('statusText'), statusDetail: $('statusDetail'),
     bgTemple: document.querySelector('.bg-temple'),
@@ -207,6 +207,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.resultPlaceholder.style.display = '';
     dom.resultPlaceholder.textContent = `${castModeName()}后，解卦结果显示于此`;
     dom.resultStatus.style.display = 'none';
+    dom.statusNotice.hidden = true;
     dom.resultTools.style.display = 'none';
     dom.btnQiGua.style.display = '';
     renderActionButtons();
@@ -989,6 +990,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.resultContent.textContent = '';
     dom.resultPlaceholder.style.display = '';
     dom.resultStatus.style.display = 'none';
+    dom.statusNotice.hidden = true;
     dom.resultTools.style.display = 'none';
     plainHtml = '';
     yiLiHtml = '';
@@ -1052,6 +1054,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     startDiviningBackground();
     if (castMode === 'random') stopRandomRoll();
     dom.resultPlaceholder.style.display = 'none';
+    dom.statusNotice.hidden = false;
     dom.resultStatus.style.display = 'none';
     dom.statusText.textContent = '';
     dom.statusDetail.textContent = '';
@@ -1066,6 +1069,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   }
 
   function finishJieGua({showResult = true, statusText = '', statusDetail = ''} = {}) {
+    dom.statusNotice.hidden = true;
     if (jieGuaFinishPromise) return jieGuaFinishPromise;
     jieGuaFinishPromise = (async () => {
       await settleDiviningBackground();
