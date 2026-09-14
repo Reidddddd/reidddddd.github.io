@@ -24,6 +24,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     hexPlaceholder: $('hexPlaceholder'), hexCols: $('hexCols'),
     resultPlaceholder: $('resultPlaceholder'), resultContent: $('resultContent'),
     resultStatus: $('resultStatus'), resultTools: $('resultTools'), statusNotice: $('statusNotice'),
+    statusSpinner: $('statusSpinner'), statusReminder: $('statusReminder'),
     resultViewButtons: Array.from(document.querySelectorAll('[data-result-view]')),
     statusText: $('statusText'), statusDetail: $('statusDetail'),
     bgTemple: document.querySelector('.bg-temple'),
@@ -208,6 +209,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.resultPlaceholder.textContent = `${castModeName()}后，解卦结果显示于此`;
     dom.resultStatus.style.display = 'none';
     dom.statusNotice.hidden = true;
+    dom.statusReminder.hidden = false;
+    dom.statusSpinner.classList.add('active');
     dom.resultTools.style.display = 'none';
     dom.btnQiGua.style.display = '';
     renderActionButtons();
@@ -991,6 +994,8 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     dom.resultPlaceholder.style.display = '';
     dom.resultStatus.style.display = 'none';
     dom.statusNotice.hidden = true;
+    dom.statusReminder.hidden = false;
+    dom.statusSpinner.classList.add('active');
     dom.resultTools.style.display = 'none';
     plainHtml = '';
     yiLiHtml = '';
@@ -1055,8 +1060,10 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
     if (castMode === 'random') stopRandomRoll();
     dom.resultPlaceholder.style.display = 'none';
     dom.statusNotice.hidden = false;
-    dom.resultStatus.style.display = 'none';
-    dom.statusText.textContent = '';
+    dom.statusReminder.hidden = false;
+    dom.resultStatus.style.display = '';
+    dom.statusSpinner.classList.add('active');
+    dom.statusText.textContent = '正在解卦，请稍候……';
     dom.statusDetail.textContent = '';
     dom.resultTools.style.display = 'none';
     plainHtml = '';
@@ -1069,16 +1076,22 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   }
 
   function finishJieGua({showResult = true, statusText = '', statusDetail = ''} = {}) {
-    dom.statusNotice.hidden = true;
     if (jieGuaFinishPromise) return jieGuaFinishPromise;
+    if (showResult) dom.statusNotice.hidden = true;
     jieGuaFinishPromise = (async () => {
       await settleDiviningBackground();
       jieGuaAnimating = false;
       if (showResult) {
+        dom.statusReminder.hidden = false;
+        dom.statusSpinner.classList.add('active');
+        dom.resultStatus.style.display = 'none';
         lockCastControls();
         await delay(RESULT_REVEAL_DELAY);
         revealCompleteResultTabs();
       } else {
+        dom.statusNotice.hidden = false;
+        dom.statusReminder.hidden = true;
+        dom.statusSpinner.classList.remove('active');
         dom.resultStatus.style.display = '';
         dom.statusText.textContent = statusText;
         dom.statusDetail.textContent = statusDetail;
@@ -1144,7 +1157,10 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   }
 
   function renderJieGuaProgress(data) {
+    dom.statusNotice.hidden = false;
+    dom.statusReminder.hidden = false;
     dom.resultStatus.style.display = '';
+    dom.statusSpinner.classList.add('active');
     dom.statusText.textContent = data;
     dom.statusDetail.textContent = '';
   }
@@ -1182,10 +1198,6 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       statusText: '出错',
       statusDetail: resultPayloadHtml(data) || String(data || ''),
     });
-  }
-
-  function finishJieGuaStream() {
-    dom.resultStatus.style.display = 'none';
   }
 
   // 解卦流程
@@ -1239,8 +1251,6 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
       updateResultTabs();
     } else if (event === 'error') {
       showJieGuaError(data);
-    } else if (event === 'done') {
-      finishJieGuaStream();
     }
   }
 

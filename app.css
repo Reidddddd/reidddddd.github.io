@@ -502,9 +502,13 @@
   .result-head { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem; flex-shrink: 0; }
   .result-section h2 { font-size: 0.95rem; font-weight: 600; line-height: 1; margin: 0; color: var(--text-soft); }
   .status-notice {
-    display: flex; flex-direction: column; gap: 0.12rem; margin: 0 0 0.45rem;
+    display: flex; flex-direction: column; gap: 0.3rem; margin: 0 0 0.45rem;
     padding: 0.45rem 0.6rem; border-left: 2px solid var(--accent);
     background: rgba(200, 150, 12, 0.08); color: var(--text-soft);
+  }
+  .status-notice[hidden], .status-reminder[hidden] { display: none; }
+  .status-reminder {
+    display: flex; flex-direction: column; gap: 0.12rem;
     font-size: 0.78rem; line-height: 1.5;
   }
   .result-status { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.3rem; flex-shrink: 0; }
