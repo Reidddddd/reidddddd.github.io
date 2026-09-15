@@ -10,6 +10,24 @@ const API_BASE                     = API_ENV_CONFIG.baseUrl.replace(/\/+$/, '');
 const API_REQUEST_HEADERS          = API_ENV_CONFIG.headers || {};
 const API_CONTRACT_VERSION_HEADER  = 'X-API-Contract-Version';
 const API_CONTRACT_VERSION         = '1';
+const API_ERROR_KIND               = Object.freeze({
+  HTTP: 'http',
+  SSE: 'sse',
+  RATE_LIMIT: 'rate_limit',
+  NETWORK: 'network',
+  DISCONNECT: 'disconnect',
+  CONTRACT: 'contract',
+});
+
+class ApiRequestError extends Error {
+  constructor(errorKind, message, status = null) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.errorKind = errorKind;
+    this.status = status;
+  }
+}
+
   const MAX = 3, MIN = 2;
   let selected = [];
   let castMode = 'numbers';
@@ -105,28 +123,49 @@ const API_CONTRACT_VERSION         = '1';
 
   function fetchLunarData(date) {
     const encodedSolarDateTime = encodeURIComponent(formatSolarDateTime(date));
-    return fetch(`${API_BASE}/api/lunar-data?solar_datetime=${encodedSolarDateTime}`, {
-      headers: API_REQUEST_HEADERS,
-    }).then(response => {
-      assertApiContract(response);
-      return response;
-    });
+    return fetchApiResponse(
+      `${API_BASE}/api/lunar-data?solar_datetime=${encodedSolarDateTime}`,
+      {
+        headers: API_REQUEST_HEADERS,
+      },
+    );
   }
 
   function assertApiContract(response) {
     const version = response.headers.get(API_CONTRACT_VERSION_HEADER);
     if (version !== API_CONTRACT_VERSION) {
-      throw new Error('API 契约版本不匹配，请刷新页面后重试');
+      throw new ApiRequestError(
+        API_ERROR_KIND.CONTRACT,
+        'API 契约版本不匹配，请刷新页面后重试。',
+      );
     }
   }
 
+  async function fetchApiResponse(url, options) {
+    let response;
+    try {
+      response = await fetch(url, options);
+    } catch (_) {
+      // fetch 失败时没有可用的 HTTP 状态，统一归类为网络错误。
+      throw new ApiRequestError(
+        API_ERROR_KIND.NETWORK,
+        '无法连接服务，请检查网络连接后重试。',
+      );
+    }
+    assertApiContract(response);
+    return response;
+  }
+
   fetchLunarData(new Date())
-    .then(response => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    .then(async response => {
+      if (!response.ok) throw await createHttpError(response);
       return response.json();
     })
     .then(data => { renderLunarPanel(data); requestAnimationFrame(syncRightColumnHeight); })
-    .catch(() => {});
+    .catch(error => {
+      // 底部农历栏不是起卦前置条件，失败时保留页面主流程并记录原因。
+      console.warn('初始农历数据加载失败', error.message);
+    });
 
   // 基础卦象数据
   const JING_GUA = [
@@ -591,7 +630,7 @@ const API_CONTRACT_VERSION         = '1';
     if (lunarDate.getHours() >= 23) lunarDate.setDate(lunarDate.getDate() + 1);
     try {
       const response = await fetchLunarData(lunarDate);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) throw await createHttpError(response);
       const data = await response.json();
       const lunarCast = data.lunar_cast;
       const lunarNumbers = lunarCast?.numbers;
@@ -606,8 +645,16 @@ const API_CONTRACT_VERSION         = '1';
         throw new Error('农历起卦数据不完整');
       }
       LUNAR_CAST = lunarCast;
-    } catch (_) {
-      showLunarError('农历换算失败，请检查网络连接后重试。');
+    } catch (error) {
+      if (error instanceof ApiRequestError) {
+        const errorStatus = requestErrorStatus(error);
+        const message = errorStatus.statusDetail
+          ? `${errorStatus.statusText}：${errorStatus.statusDetail}`
+          : errorStatus.statusText;
+        showLunarError(message);
+      } else {
+        showLunarError('农历换算失败，请检查网络连接后重试。');
+      }
       return false;
     }
 
@@ -886,49 +933,197 @@ const API_CONTRACT_VERSION         = '1';
   });
 
   async function runSSERequest(path, handler) {
-    const resp = await fetch(`${API_BASE}${path}`, {
+    const response = await fetchApiResponse(`${API_BASE}${path}`, {
       method: 'POST',
       headers: {...API_REQUEST_HEADERS, 'Content-Type': 'application/json'},
       body: apiBody(),
     });
-    assertApiContract(resp);
-    if (!resp.ok) {
-      let errorMessage = '';
-      if (resp.body) {
-        for await (const sse_event of streamSSE(resp.body.getReader())) {
-          if (sse_event.event === 'error') {
-            let data;
-            try { data = JSON.parse(sse_event.data); } catch (_) { data = sse_event.data; }
-            errorMessage = resultPayloadHtml(data) || String(data || '');
-          }
-        }
-      }
-      const fallbackMessage = resp.status === 429
-        ? '今天已达次数上限，二十四小时后再来'
-        : `HTTP ${resp.status}`;
-      const error = new Error(errorMessage || fallbackMessage);
-      error.status = resp.status;
-      throw error;
+    if (!response.ok) throw await createHttpError(response);
+    if (!response.body) {
+      throw new ApiRequestError(
+        API_ERROR_KIND.DISCONNECT,
+        '连接中断，结果未完整返回。',
+      );
     }
-    if (!resp.body) throw new Error('响应体为空');
-    for await (const sse_event of streamSSE(resp.body.getReader())) handler(sse_event.event, sse_event.data);
+
+    // SSE 只有收到 done 才算完整；连接提前结束时提示用户重试。
+    let receivedDone = false;
+    const reader = response.body.getReader();
+    try {
+      for await (const sseEvent of streamSSE(reader)) {
+        if (sseEvent.event === 'error') {
+          throw new ApiRequestError(
+            API_ERROR_KIND.SSE,
+            parseErrorPayload(sseEvent.data) || '服务处理失败，请稍后重试。',
+          );
+        }
+        if (sseEvent.event === 'done') receivedDone = true;
+        handler(sseEvent.event, sseEvent.data);
+      }
+    } catch (error) {
+      // 提前结束时取消读取，避免错误连接继续占用浏览器资源。
+      await reader.cancel().catch(() => {});
+      if (error instanceof ApiRequestError) throw error;
+      throw new ApiRequestError(
+        API_ERROR_KIND.DISCONNECT,
+        '连接中断，结果未完整返回。',
+      );
+    } finally {
+      reader.releaseLock();
+    }
+
+    if (!receivedDone) {
+      throw new ApiRequestError(
+        API_ERROR_KIND.DISCONNECT,
+        '连接中断，结果未完整返回。',
+      );
+    }
+  }
+
+  async function createHttpError(response) {
+    const errorKind = response.status === 429
+      ? API_ERROR_KIND.RATE_LIMIT
+      : API_ERROR_KIND.HTTP;
+    const message = await readHttpErrorMessage(response);
+    return new ApiRequestError(
+      errorKind,
+      message || httpErrorFallback(response.status),
+      response.status,
+    );
+  }
+
+  async function readHttpErrorMessage(response) {
+    const contentType = (response.headers.get('content-type') || '').toLowerCase();
+    if (contentType.includes('text/event-stream') && response.body) {
+      const reader = response.body.getReader();
+      try {
+        for await (const sseEvent of streamSSE(reader)) {
+          if (sseEvent.event === 'error') return parseErrorPayload(sseEvent.data);
+        }
+      } catch (_) {
+        // 错误响应读取失败时回退到 HTTP 状态码。
+      } finally {
+        try {
+          await reader.cancel();
+        } catch (_) {
+          // 错误响应已进入失败流程，读取器清理失败不覆盖原始错误。
+        }
+        reader.releaseLock();
+      }
+      return '';
+    }
+
+    if (!contentType.includes('json')) return '';
+    try {
+      return errorPayloadMessage(await response.json());
+    } catch (_) {
+      // 代理返回的错误页可能不是 JSON，使用 HTTP 状态码兜底。
+      return '';
+    }
+  }
+
+  function parseErrorPayload(rawData) {
+    try {
+      return errorPayloadMessage(JSON.parse(rawData));
+    } catch (_) {
+      return errorPayloadMessage(rawData);
+    }
+  }
+
+  function errorPayloadMessage(data) {
+    if (typeof data === 'string') return data.trim();
+    if (!data || typeof data !== 'object') return '';
+    if (typeof data.error === 'string') return data.error.trim();
+    if (data.error && typeof data.error === 'object') {
+      return String(data.error.message || '').trim();
+    }
+    return String(data.message || data.detail || '').trim();
+  }
+
+  function httpErrorFallback(status) {
+    if (status === 429) return '今天已达次数上限，二十四小时后再来';
+    if (status === 408 || status === 504) return '服务响应超时，请稍后重试。';
+    if (status >= 500) return '服务暂时不可用，请稍后重试。';
+    if (status >= 400) return '请求参数有误，请检查后重试。';
+    return `HTTP ${status}`;
   }
 
   function requestErrorStatus(error) {
-    if (error.status === 429) {
+    if (error.errorKind === API_ERROR_KIND.RATE_LIMIT || error.status === 429) {
       return {
-        statusText: error.message || '今日次数已达上限',
+        statusText: error.message || '今天已达次数上限，二十四小时后再来',
         statusDetail: '',
+      };
+    }
+    if (error.errorKind === API_ERROR_KIND.HTTP) {
+      return {
+        statusText: httpErrorStatusText(error.status),
+        statusDetail: error.message,
+      };
+    }
+    if (error.errorKind === API_ERROR_KIND.SSE) {
+      return {
+        statusText: '服务处理失败',
+        statusDetail: error.message || '服务暂时不可用，请稍后重试。',
+      };
+    }
+    if (error.errorKind === API_ERROR_KIND.NETWORK) {
+      return {
+        statusText: '连接失败',
+        statusDetail: error.message,
+      };
+    }
+    if (error.errorKind === API_ERROR_KIND.DISCONNECT) {
+      return {
+        statusText: '连接中断',
+        statusDetail: '本次结果未完整返回，请保持本页面打开并保持网络连接后重试。',
+      };
+    }
+    if (error.errorKind === API_ERROR_KIND.CONTRACT) {
+      return {
+        statusText: '接口版本不匹配',
+        statusDetail: '请刷新页面后重试。',
       };
     }
     return {
       statusText: '连接出错',
-      statusDetail: error.message,
+      statusDetail: '请稍后重试。',
     };
   }
 
+  function httpErrorStatusText(status) {
+    if (status === 400) return '请求参数有误';
+    if (status === 401 || status === 403) return '请求未获允许';
+    if (status === 404) return '服务接口不存在';
+    if (status === 408 || status === 504) return '服务响应超时';
+    if (status >= 500) return '服务暂时不可用';
+    return `请求失败（HTTP ${status}）`;
+  }
+
+  function showRequestErrorStatus(error) {
+    renderErrorStatus(requestErrorStatus(error));
+  }
+
+  function renderErrorStatus(errorStatus) {
+    dom.statusNotice.hidden = false;
+    dom.statusReminder.hidden = true;
+    dom.statusSpinner.classList.remove('active');
+    dom.resultStatus.style.display = '';
+    dom.resultContent.classList.remove('is-streaming');
+    dom.resultContent.style.display = 'none';
+    dom.statusText.textContent = errorStatus.statusText;
+    dom.statusDetail.textContent = errorStatus.statusDetail;
+  }
+
   function resetQiGuaErrorState() {
+    hexReady = false;
     randomCasting = false;
+    hexagramsHtml = '';
+    castSnapshot = null;
+    dom.hexCols.style.display = 'none';
+    dom.hexCols.innerHTML = '';
+    dom.hexPlaceholder.style.display = '';
+    dom.hexPlaceholder.textContent = `${castModeName()}后，卦象显示于此`;
     dom.btnQiGua.disabled = !canCast();
     dom.btnJieGua.style.display = 'none';
     dom.btnJieGua.disabled = true;
@@ -982,9 +1177,7 @@ const API_CONTRACT_VERSION         = '1';
     try {
       await runSSERequest('/api/qi-gua', handleQiGua);
     } catch (error) {
-      const errorStatus = requestErrorStatus(error);
-      dom.statusText.textContent = errorStatus.statusText;
-      dom.statusDetail.textContent = errorStatus.statusDetail;
+      showRequestErrorStatus(error);
       resetQiGuaErrorState();
       refresh();
     }
@@ -1002,9 +1195,6 @@ const API_CONTRACT_VERSION         = '1';
       dom.btnJieGua.style.display = ''; dom.btnJieGua.disabled = false;
       hexReady = true;
       requestAnimationFrame(syncRightColumnHeight);
-    } else if (event === 'error') {
-      dom.hexPlaceholder.style.display = ''; dom.hexPlaceholder.textContent = data;
-      resetQiGuaErrorState();
     }
   }
 
@@ -1022,6 +1212,8 @@ const API_CONTRACT_VERSION         = '1';
     dom.resultTools.style.display = 'none';
     plainHtml = '';
     yiLiHtml = '';
+    plainStreamText = '';
+    yiLiStreamText = '';
     guwenHtml = '';
     activeResultView = 'guwen';
     jieGuaFinishPromise = null;
@@ -1043,12 +1235,7 @@ const API_CONTRACT_VERSION         = '1';
         await delay(RESULT_REVEAL_DELAY);
         revealCompleteResultTabs();
       } else {
-        dom.statusNotice.hidden = false;
-        dom.statusReminder.hidden = true;
-        dom.statusSpinner.classList.remove('active');
-        dom.resultStatus.style.display = '';
-        dom.statusText.textContent = statusText;
-        dom.statusDetail.textContent = statusDetail;
+        renderErrorStatus({statusText, statusDetail});
         dom.btnJieGua.disabled = false;
       }
     })();
@@ -1143,14 +1330,14 @@ const API_CONTRACT_VERSION         = '1';
     dom.resultStatus.style.display = 'none';
     dom.resultContent.classList.remove('is-streaming');
     plainHtml = resultPayloadHtml(data);
-    finishJieGuaWhenReady();
   }
 
-  function showJieGuaError(data) {
-    finishJieGua({
+  function showJieGuaError(error) {
+    const errorStatus = requestErrorStatus(error);
+    return finishJieGua({
       showResult: false,
-      statusText: '出错',
-      statusDetail: resultPayloadHtml(data) || String(data || ''),
+      statusText: errorStatus.statusText,
+      statusDetail: errorStatus.statusDetail,
     });
   }
 
@@ -1161,6 +1348,7 @@ const API_CONTRACT_VERSION         = '1';
 
     try {
       await runSSERequest('/api/jie-gua', handleJieGua);
+      finishJieGuaWhenReady();
       if (jieGuaFinishPromise) {
         await jieGuaFinishPromise;
       } else {
@@ -1175,12 +1363,7 @@ const API_CONTRACT_VERSION         = '1';
         await jieGuaFinishPromise;
         return;
       }
-      const errorStatus = requestErrorStatus(error);
-      await finishJieGua({
-        showResult: false,
-        statusText: errorStatus.statusText,
-        statusDetail: errorStatus.statusDetail,
-      });
+      await showJieGuaError(error);
     }
   });
 
@@ -1203,8 +1386,6 @@ const API_CONTRACT_VERSION         = '1';
     } else if (event === 'yi_li') {
       yiLiHtml = resultPayloadHtml(data);
       updateResultTabs();
-    } else if (event === 'error') {
-      showJieGuaError(data);
     }
   }
 
