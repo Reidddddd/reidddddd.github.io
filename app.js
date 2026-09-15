@@ -583,21 +583,17 @@ const API_REQUEST_HEADERS = API_ENV_CONFIG.headers || {};
       const data = await response.json();
       const lunarCast = data.lunar_cast;
       const lunarNumbers = lunarCast?.numbers;
-      const minuteShu = date.getMinutes();
+      const minuteShu = lunarCast?.minuteShu;
       const currentDateTime = formatSolarDateTime(readSolarDateTime());
       if (castMode !== 'lunar' || currentDateTime !== requestedDateTime) return false;
-      if (!Array.isArray(lunarNumbers) || lunarNumbers.length < 2) {
+      if (
+        !Array.isArray(lunarNumbers) ||
+        lunarNumbers.length !== 3 ||
+        !Number.isInteger(minuteShu)
+      ) {
         throw new Error('农历起卦数据不完整');
       }
-      LUNAR_CAST = {
-        ...lunarCast,
-        minuteShu,
-        numbers: [
-          lunarNumbers[0],
-          lunarNumbers[1],
-          lunarNumbers[1] + minuteShu,
-        ],
-      };
+      LUNAR_CAST = lunarCast;
     } catch (_) {
       showLunarError('农历换算失败，请检查网络连接后重试。');
       return false;
