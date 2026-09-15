@@ -1,5 +1,13 @@
 // 配置与全局状态
-const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
+const API_CONFIG          = window.MYHS_API_CONFIG;
+if (!API_CONFIG) throw new Error('缺少 API 配置');
+const API_ENV             = API_CONFIG.environment === 'auto'
+  ? (['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(window.location.hostname) ? 'local' : 'production')
+  : API_CONFIG.environment;
+const API_ENV_CONFIG      = API_CONFIG.environments[API_ENV];
+if (!API_ENV_CONFIG?.baseUrl) throw new Error(`缺少 ${API_ENV} API 配置`);
+const API_BASE            = API_ENV_CONFIG.baseUrl.replace(/\/+$/, '');
+const API_REQUEST_HEADERS = API_ENV_CONFIG.headers || {};
   const MAX = 3, MIN = 2;
   let selected = [];
   let castMode = 'numbers';
@@ -84,7 +92,7 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   };
 
   // 页面初始数据
-  fetch(`${API_BASE}/api/lunar-data`, {headers: {'ngrok-skip-browser-warning': '1'}})
+  fetch(`${API_BASE}/api/lunar-data`, {headers: API_REQUEST_HEADERS})
     .then(r => r.json())
     .then(data => { renderLunarPanel(data); requestAnimationFrame(syncRightColumnHeight); })
     .catch(() => {});
@@ -941,7 +949,11 @@ const API_BASE = 'https://trimming-algebra-credible.ngrok-free.dev';
   });
 
   async function runSSERequest(path, handler) {
-    const resp = await fetch(`${API_BASE}${path}`, {method: 'POST', headers: {'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1'}, body: apiBody()});
+    const resp = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: {...API_REQUEST_HEADERS, 'Content-Type': 'application/json'},
+      body: apiBody(),
+    });
     if (!resp.ok) {
       let errorMessage = '';
       if (resp.body) {

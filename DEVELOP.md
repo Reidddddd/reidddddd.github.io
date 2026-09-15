@@ -14,6 +14,15 @@ python3 -m http.server 9999 --bind 0.0.0.0
 http://127.0.0.1:9999
 ```
 
+API 地址和请求头在 `api-config.js` 中按环境配置：
+
+- `auto`：本地页面自动请求 `http://127.0.0.1:8888`，其他页面使用生产 API。
+- `test`：将 `environment` 改为 `test`，并填入测试 API 地址。
+- `production`：GitHub Pages 使用当前生产 API 地址。
+
+本地前后端联调时，还需要把后端 `CORS_ORIGIN` 设置为
+`http://127.0.0.1:9999`。
+
 ## 检查
 
 ```bash
