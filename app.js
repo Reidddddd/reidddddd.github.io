@@ -1,13 +1,15 @@
 // 配置与全局状态
-const API_CONFIG          = window.MYHS_API_CONFIG;
+const API_CONFIG                   = window.MYHS_API_CONFIG;
 if (!API_CONFIG) throw new Error('缺少 API 配置');
-const API_ENV             = API_CONFIG.environment === 'auto'
+const API_ENV                      = API_CONFIG.environment === 'auto'
   ? (['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(window.location.hostname) ? 'local' : 'production')
   : API_CONFIG.environment;
-const API_ENV_CONFIG      = API_CONFIG.environments[API_ENV];
+const API_ENV_CONFIG               = API_CONFIG.environments[API_ENV];
 if (!API_ENV_CONFIG?.baseUrl) throw new Error(`缺少 ${API_ENV} API 配置`);
-const API_BASE            = API_ENV_CONFIG.baseUrl.replace(/\/+$/, '');
-const API_REQUEST_HEADERS = API_ENV_CONFIG.headers || {};
+const API_BASE                     = API_ENV_CONFIG.baseUrl.replace(/\/+$/, '');
+const API_REQUEST_HEADERS          = API_ENV_CONFIG.headers || {};
+const API_CONTRACT_VERSION_HEADER  = 'X-API-Contract-Version';
+const API_CONTRACT_VERSION         = '1';
   const MAX = 3, MIN = 2;
   let selected = [];
   let castMode = 'numbers';
@@ -105,7 +107,17 @@ const API_REQUEST_HEADERS = API_ENV_CONFIG.headers || {};
     const encodedSolarDateTime = encodeURIComponent(formatSolarDateTime(date));
     return fetch(`${API_BASE}/api/lunar-data?solar_datetime=${encodedSolarDateTime}`, {
       headers: API_REQUEST_HEADERS,
+    }).then(response => {
+      assertApiContract(response);
+      return response;
     });
+  }
+
+  function assertApiContract(response) {
+    const version = response.headers.get(API_CONTRACT_VERSION_HEADER);
+    if (version !== API_CONTRACT_VERSION) {
+      throw new Error('API 契约版本不匹配，请刷新页面后重试');
+    }
   }
 
   fetchLunarData(new Date())
@@ -879,6 +891,7 @@ const API_REQUEST_HEADERS = API_ENV_CONFIG.headers || {};
       headers: {...API_REQUEST_HEADERS, 'Content-Type': 'application/json'},
       body: apiBody(),
     });
+    assertApiContract(resp);
     if (!resp.ok) {
       let errorMessage = '';
       if (resp.body) {

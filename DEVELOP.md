@@ -23,6 +23,8 @@ API 地址和请求头在 `api-config.js` 中按环境配置：
 本地前后端联调时，还需要把后端 `CORS_ORIGIN` 设置为
 `http://127.0.0.1:9999`。
 
+前端要求 API 响应携带 `X-API-Contract-Version: 1`；版本不匹配时不会继续解析响应。
+
 ## 检查
 
 ```bash
