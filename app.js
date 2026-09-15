@@ -92,8 +92,27 @@ const API_REQUEST_HEADERS = API_ENV_CONFIG.headers || {};
   };
 
   // 页面初始数据
-  fetch(`${API_BASE}/api/lunar-data`, {headers: API_REQUEST_HEADERS})
-    .then(r => r.json())
+  function formatSolarDateTime(date) {
+    const datePart = [
+      String(date.getFullYear()).padStart(4, '0'),
+      pad2(date.getMonth() + 1),
+      pad2(date.getDate()),
+    ].join('-');
+    return `${datePart}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+  }
+
+  function fetchLunarData(date) {
+    const encodedSolarDateTime = encodeURIComponent(formatSolarDateTime(date));
+    return fetch(`${API_BASE}/api/lunar-data?solar_datetime=${encodedSolarDateTime}`, {
+      headers: API_REQUEST_HEADERS,
+    });
+  }
+
+  fetchLunarData(new Date())
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    })
     .then(data => { renderLunarPanel(data); requestAnimationFrame(syncRightColumnHeight); })
     .catch(() => {});
 
@@ -328,12 +347,6 @@ const API_REQUEST_HEADERS = API_ENV_CONFIG.headers || {};
   }
 
   // 农历时：状态初始化
-  const GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
-  const BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-  const BRANCH_SHU = BRANCHES.reduce((acc, branch, index) => {
-    acc[branch] = index + 1;
-    return acc;
-  }, {});
   function initLunarPicker() {
     setLunarPickerToNow();
     hideLunarCastResult();
@@ -552,134 +565,50 @@ const API_REQUEST_HEADERS = API_ENV_CONFIG.headers || {};
     dom.lunarCastError.textContent = message;
   }
 
-  function prepareLunarCastFromPicker() {
+  async function prepareLunarCastFromPicker() {
     const date = readSolarDateTime();
     if (!date) {
       showLunarError('请选择有效的公历日期和时刻。');
       return false;
     }
-    // 早子时：23:00 起日期按次日计
-    if (date.getHours() >= 23) date.setDate(date.getDate() + 1);
-    const data = buildLunarData(date);
-    if (!data) {
-      showLunarError('当前浏览器暂不支持农历换算。');
+
+    dom.btnQiGua.disabled = true;
+    const requestedDateTime = formatSolarDateTime(date);
+    const lunarDate = new Date(date);
+    // 保留早子时规则：23:00 起按次日的农历日期换算。
+    if (lunarDate.getHours() >= 23) lunarDate.setDate(lunarDate.getDate() + 1);
+    try {
+      const response = await fetchLunarData(lunarDate);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const lunarCast = data.lunar_cast;
+      const lunarNumbers = lunarCast?.numbers;
+      const minuteShu = date.getMinutes();
+      const currentDateTime = formatSolarDateTime(readSolarDateTime());
+      if (castMode !== 'lunar' || currentDateTime !== requestedDateTime) return false;
+      if (!Array.isArray(lunarNumbers) || lunarNumbers.length < 2) {
+        throw new Error('农历起卦数据不完整');
+      }
+      LUNAR_CAST = {
+        ...lunarCast,
+        minuteShu,
+        numbers: [
+          lunarNumbers[0],
+          lunarNumbers[1],
+          lunarNumbers[1] + minuteShu,
+        ],
+      };
+    } catch (_) {
+      showLunarError('农历换算失败，请检查网络连接后重试。');
       return false;
     }
-    LUNAR_CAST = data.lunar_cast;
+
     lunarCastRevealed = true;
     lunarPickerFollowsNow = false;
     updateLunarCastPanel();
     refresh();
     requestAnimationFrame(syncRightColumnHeight);
     return true;
-  }
-
-  function buildLunarData(date) {
-    let parts;
-    try {
-      parts = new Intl.DateTimeFormat('zh-CN-u-ca-chinese', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      }).formatToParts(date);
-    } catch (_) {
-      return null;
-    }
-
-    const relatedYear = Number(lunarPart(parts, 'relatedYear')) || date.getFullYear();
-    const monthText = lunarPart(parts, 'month');
-    const dayText = lunarPart(parts, 'day');
-    const monthShu = parseLunarMonth(monthText);
-    const dayShu = parseChineseNumber(dayText);
-    const yearName = lunarPart(parts, 'yearName') || readLunarYearName(date) || sexagenaryYearName(relatedYear);
-    const yearBranch = yearName.slice(-1);
-    const yearShu = BRANCH_SHU[yearBranch];
-    const hourBranch = hourBranchName(date.getHours());
-    const hourShu = BRANCH_SHU[hourBranch];
-    if (!monthShu || !dayShu || !yearShu || !hourShu) return null;
-
-    const minuteShu = date.getMinutes();
-    const monthLabel = monthText || `${monthShu}月`;
-    const dayLabel = Number.isInteger(Number(dayText)) ? chineseDayName(dayShu) : dayText;
-    const shangTotal = yearShu + monthShu + dayShu;
-    const xiaTotal = shangTotal + hourShu;
-    const dongTotal = xiaTotal + minuteShu;
-    const numbers = [shangTotal, xiaTotal, dongTotal];
-    const solarDisplay = `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
-
-    return {
-      lunar_cast: {
-        display: `${yearName}年 ${monthLabel}${dayLabel} ${hourBranch}时`,
-        solarDisplay,
-        yearShu,
-        monthShu,
-        dayShu,
-        hourShu,
-        minuteShu,
-        numbers,
-      },
-    };
-  }
-
-  function lunarPart(parts, type) {
-    const part = parts.find(item => item.type === type);
-    return part ? part.value : '';
-  }
-
-  function readLunarYearName(date) {
-    try {
-      const text = new Intl.DateTimeFormat('zh-CN-u-ca-chinese', {dateStyle: 'full'}).format(date);
-      const match = text.match(/[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]/);
-      return match ? match[0] : '';
-    } catch (_) {
-      return '';
-    }
-  }
-
-  function sexagenaryYearName(year) {
-    const index = positiveMod(year - 1984, 60);
-    return `${GAN[index % 10]}${BRANCHES[index % 12]}`;
-  }
-
-  function parseLunarMonth(value) {
-    const clean = String(value || '').replace(/^闰/, '').replace('月', '').trim();
-    const aliases = {正: 1, 冬: 11, 腊: 12};
-    return aliases[clean] || parseChineseNumber(clean);
-  }
-
-  function parseChineseNumber(value) {
-    const text = String(value || '').replace(/[日月]/g, '').trim();
-    if (/^\d+$/.test(text)) return Number(text);
-    const digits = {一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 零: 0};
-    if (digits[text]) return digits[text];
-    if (text.startsWith('初')) return digits[text.slice(1)] || 0;
-    if (text === '廿') return 20;
-    if (text.startsWith('廿')) return 20 + (digits[text.slice(1)] || 0);
-    if (text === '卅') return 30;
-    if (text.startsWith('卅')) return 30 + (digits[text.slice(1)] || 0);
-    if (text.includes('十')) {
-      const [left, right] = text.split('十');
-      const tens = left ? digits[left] : 1;
-      return (tens || 1) * 10 + (right ? (digits[right] || 0) : 0);
-    }
-    return 0;
-  }
-
-  function chineseDayName(day) {
-    const names = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
-    if (day <= 10) return `初${names[day]}`;
-    if (day < 20) return `十${names[day - 10]}`;
-    if (day === 20) return '二十';
-    if (day < 30) return `廿${names[day - 20]}`;
-    return day === 30 ? '三十' : String(day);
-  }
-
-  function hourBranchName(hour) {
-    return BRANCHES[Math.floor(((hour + 1) % 24) / 2)];
-  }
-
-  function positiveMod(value, modulo) {
-    return ((value % modulo) + modulo) % modulo;
   }
 
   // 底部农历栏
@@ -1023,9 +952,13 @@ const API_REQUEST_HEADERS = API_ENV_CONFIG.headers || {};
   dom.btnQiGua.addEventListener('click', async () => {
     if (resultsLocked) return;
     if (!canCast()) return;
-    if (castMode === 'lunar' && !prepareLunarCastFromPicker()) {
-      refresh();
-      return;
+    if (castMode === 'lunar') {
+      const lunarReady = await prepareLunarCastFromPicker();
+      if (!lunarReady) {
+        renderActionButtons();
+        requestAnimationFrame(syncRightColumnHeight);
+        return;
+      }
     }
     beginQiGua();
 
