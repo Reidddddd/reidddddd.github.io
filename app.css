@@ -573,7 +573,10 @@
     .footer-right { grid-column: 1; grid-row: 2; text-align: right; }
     .result-head { flex-wrap: wrap; }
     .result-tools { transform: none; }
-    .result-section { flex: none; min-height: 18rem; max-height: none; overflow: visible; position: relative; }
+    .result-section {
+      flex: none; min-height: 18rem; max-height: none; overflow: visible;
+      position: relative; padding-bottom: 2.4rem;
+    }
     #btnSaveResult { position: absolute; bottom: 0.6rem; right: 0.6rem; }
     .result-content { flex: none; max-height: none; overflow: visible; padding-right: 0; }
     .hex-cols { gap: 3px; }
