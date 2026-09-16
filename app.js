@@ -1453,7 +1453,7 @@ class ApiRequestError extends Error {
     dom.resultPlaceholder.style.display = 'none';
     dom.resultContent.classList.remove('is-streaming');
     dom.resultContent.innerHTML = html;
-    dom.resultContent.style.display = 'block';
+    dom.resultContent.style.display = view === 'guwen' ? 'grid' : 'block';
     requestAnimationFrame(syncRightColumnHeight);
   }
 
