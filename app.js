@@ -14,6 +14,11 @@ if (!CAST_STATE_MODULE) throw new Error('缺少起卦状态模块');
 const {CastStateMachine, MAX} = CAST_STATE_MODULE;
 const castState = new CastStateMachine();
 
+// 农历选择器
+const LUNAR_PICKER_MODULE = window.MYHS_LUNAR_PICKER;
+if (!LUNAR_PICKER_MODULE) throw new Error('缺少农历选择器模块');
+const {LunarPicker} = LUNAR_PICKER_MODULE;
+
   // 页面状态
   let plainHtml = '';
   let yiLiHtml = '';
@@ -47,9 +52,6 @@ const castState = new CastStateMachine();
     customShangOptions: $('customShangOptions'), customXiaOptions: $('customXiaOptions'),
     customDongOptions: $('customDongOptions'),
     lunarCastSource: $('lunarCastSource'), lunarCastError: $('lunarCastError'),
-    hourScroll: $('hourScroll'), minuteScroll: $('minuteScroll'),
-    calDays: $('calDays'), calMonthText: $('calMonthText'), calYearBtn: $('calYearBtn'), calYearDrop: $('calYearDrop'),
-    calPrev: $('calPrev'), calNext: $('calNext'),
     lunarCastResult: $('lunarCastResult'),
     lunarShang: $('lunarShang'), lunarXia: $('lunarXia'), lunarDong: $('lunarDong'),
     lunarShangFormula: $('lunarShangFormula'), lunarXiaFormula: $('lunarXiaFormula'),
@@ -69,15 +71,6 @@ const castState = new CastStateMachine();
   const RESULT_REVEAL_DELAY = 1000;
   let LUNAR_CAST = null;
   let lunarCastRevealed = false;
-  let lunarPickerFollowsNow = true;
-  let lunarPickerDate = new Date();
-  let lunarPickerHour = lunarPickerDate.getHours();
-  let lunarPickerMinute = lunarPickerDate.getMinutes();
-  let calendarYear = lunarPickerDate.getFullYear();
-  let calendarMonth = lunarPickerDate.getMonth();
-  let timeScrollBusy = false;
-  const TIME_LOOP_CYCLES = 5;
-  const TIME_LOOP_MID = Math.floor(TIME_LOOP_CYCLES / 2);
   // 天选数动画参数
   const RANDOM_ROLL = {
     minSteps: 20,
@@ -90,18 +83,39 @@ const castState = new CastStateMachine();
     pauseMax: 960,
   };
 
+  const lunarPicker = new LunarPicker({
+    document,
+    dom: {
+      hourScroll: $('hourScroll'),
+      minuteScroll: $('minuteScroll'),
+      calDays: $('calDays'),
+      calMonthText: $('calMonthText'),
+      calYearBtn: $('calYearBtn'),
+      calYearDrop: $('calYearDrop'),
+      calPrev: $('calPrev'),
+      calNext: $('calNext'),
+    },
+    isLocked: () => castState.resultsLocked,
+    isLunarMode: () => castState.mode === 'lunar',
+    isLunarCastRevealed: () => lunarCastRevealed,
+    hasHexReady: () => castState.hexReady,
+    onClearCastOutput: () => clearCastOutput(),
+    onHideLunarCastResult: () => hideLunarCastResult(),
+    onRefresh: () => refresh(),
+    onSyncLayout: () => requestAnimationFrame(syncRightColumnHeight),
+  });
+
   // 页面初始数据
   function formatSolarDateTime(date) {
-    const datePart = [
-      String(date.getFullYear()).padStart(4, '0'),
-      pad2(date.getMonth() + 1),
-      pad2(date.getDate()),
-    ].join('-');
-    return `${datePart}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+    return lunarPicker.formatSolarDateTime(date);
   }
 
   function fetchLunarData(date) {
     return fetchLunarDataRequest(formatSolarDateTime(date));
+  }
+
+  function readSolarDateTime() {
+    return lunarPicker.readSolarDateTime();
   }
 
   fetchLunarData(new Date())
@@ -195,7 +209,7 @@ const castState = new CastStateMachine();
     dom.randomCastPanel.hidden = mode !== 'random';
     dom.lunarCastPanel.hidden = mode !== 'lunar';
     dom.customCastPanel.hidden = mode !== 'custom';
-    if (mode === 'lunar') refreshLunarPickerNow();
+    if (mode === 'lunar') lunarPicker.refreshNow();
     clearCastOutput();
     refresh();
   }
@@ -328,208 +342,6 @@ const castState = new CastStateMachine();
     });
   }
 
-  // 农历时：状态初始化
-  function initLunarPicker() {
-    setLunarPickerToNow();
-    hideLunarCastResult();
-    refresh();
-  }
-
-  function setLunarPickerToNow() {
-    const now = new Date();
-    lunarPickerDate = now;
-    lunarPickerHour = now.getHours();
-    lunarPickerMinute = now.getMinutes();
-    calendarYear = now.getFullYear();
-    calendarMonth = now.getMonth();
-    lunarPickerFollowsNow = true;
-    renderCalendar();
-    setTimeScrollTo(lunarPickerHour, lunarPickerMinute);
-  }
-
-  function refreshLunarPickerNow() {
-    if (lunarPickerFollowsNow && !lunarCastRevealed) setLunarPickerToNow();
-  }
-
-  function pad2(value) {
-    return String(value).padStart(2, '0');
-  }
-
-  function readSolarDateTime() {
-    const date = new Date(lunarPickerDate);
-    date.setHours(lunarPickerHour, lunarPickerMinute, 0, 0);
-    return date;
-  }
-
-  // 农历时：时间滚轮
-  function buildTimeScrolls() {
-    dom.hourScroll.innerHTML = buildTimeLoopItems(24, value => pad2(value));
-    dom.minuteScroll.innerHTML = buildTimeLoopItems(60, value => pad2(value));
-
-    dom.hourScroll.addEventListener('scroll', () => onTimeScroll('hour'), {passive: true});
-    dom.minuteScroll.addEventListener('scroll', () => onTimeScroll('minute'), {passive: true});
-  }
-
-  function buildTimeLoopItems(count, labelFor) {
-    let html = '';
-    for (let cycle = 0; cycle < TIME_LOOP_CYCLES; cycle++) {
-      for (let value = 0; value < count; value++) {
-        html += `<div class="time-item" data-cycle="${cycle}" data-value="${value}">${labelFor(value)}</div>`;
-      }
-    }
-    return html;
-  }
-
-  function getTimeItemHeight() {
-    const item = dom.hourScroll.querySelector('.time-item');
-    return item ? item.offsetHeight : 28.8;
-  }
-
-  function setTimeScrollTo(hour, minute) {
-    timeScrollBusy = true;
-    scrollTimeColumnTo(dom.hourScroll, hour);
-    scrollTimeColumnTo(dom.minuteScroll, minute);
-    updateTimeActiveItems();
-    requestAnimationFrame(() => { timeScrollBusy = false; });
-  }
-
-  function scrollTimeColumnTo(scroll, value) {
-    const item = scroll.querySelector(`[data-cycle="${TIME_LOOP_MID}"][data-value="${value}"]`);
-    if (!item || !item.offsetHeight || !scroll.clientHeight) {
-      scroll.scrollTop = value * getTimeItemHeight();
-      return;
-    }
-    scroll.scrollTop = item.offsetTop - (scroll.clientHeight - item.offsetHeight) / 2;
-  }
-
-  function onTimeScroll(which) {
-    if (timeScrollBusy) return;
-    const scroll = which === 'hour' ? dom.hourScroll : dom.minuteScroll;
-    const current = closestTimeItem(scroll);
-    const idx = current.value;
-    const maxVal = which === 'hour' ? 23 : 59;
-    const val = Math.max(0, Math.min(maxVal, idx));
-    if (which === 'hour') lunarPickerHour = val;
-    else lunarPickerMinute = val;
-    updateTimeActiveItems();
-    updateLunarPickerDateFromScroll();
-    normalizeTimeLoop(scroll, current);
-  }
-
-  function closestTimeItem(scroll) {
-    const items = Array.from(scroll.querySelectorAll('.time-item'));
-    const center = scroll.scrollTop + scroll.clientHeight / 2;
-    let closest = {value: 0, cycle: TIME_LOOP_MID};
-    let closestDistance = Infinity;
-    items.forEach(item => {
-      const itemCenter = item.offsetTop + item.offsetHeight / 2;
-      const distance = Math.abs(itemCenter - center);
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closest = {
-          value: Number(item.dataset.value),
-          cycle: Number(item.dataset.cycle),
-        };
-      }
-    });
-    return closest;
-  }
-
-  function normalizeTimeLoop(scroll, current) {
-    if (current.cycle > 0 && current.cycle < TIME_LOOP_CYCLES - 1) return;
-    timeScrollBusy = true;
-    scrollTimeColumnTo(scroll, current.value);
-    requestAnimationFrame(() => { timeScrollBusy = false; });
-  }
-
-  function updateTimeActiveItems() {
-    dom.hourScroll.querySelectorAll('.time-item').forEach(item => {
-      item.classList.toggle('is-active', Number(item.dataset.value) === lunarPickerHour);
-    });
-    dom.minuteScroll.querySelectorAll('.time-item').forEach(item => {
-      item.classList.toggle('is-active', Number(item.dataset.value) === lunarPickerMinute);
-    });
-  }
-
-  function updateLunarPickerDateFromScroll() {
-    lunarPickerDate = new Date(calendarYear, calendarMonth,
-      lunarPickerDate.getDate(), lunarPickerHour, lunarPickerMinute);
-    if (!timeScrollBusy) lunarPickerFollowsNow = false;
-  }
-
-  // 农历时：日历选择
-  function renderCalendar() {
-    dom.calYearBtn.textContent = calendarYear;
-    dom.calMonthText.textContent = calendarMonth + 1;
-    const today = new Date();
-    const todayY = today.getFullYear();
-    const todayM = today.getMonth();
-    const todayD = today.getDate();
-    const selY = lunarPickerDate.getFullYear();
-    const selM = lunarPickerDate.getMonth();
-    const selD = lunarPickerDate.getDate();
-
-    const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
-    const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
-    const daysInPrevMonth = new Date(calendarYear, calendarMonth, 0).getDate();
-
-    let html = '';
-    // prev month fill
-    for (let i = firstDay - 1; i >= 0; i--) {
-      const d = daysInPrevMonth - i;
-      html += `<button type="button" class="cal-day is-other-month" data-day="${d}" data-month="prev">${d}</button>`;
-    }
-    // current month
-    for (let d = 1; d <= daysInMonth; d++) {
-      let cls = 'cal-day';
-      if (calendarYear === todayY && calendarMonth === todayM && d === todayD) cls += ' is-today';
-      if (calendarYear === selY && calendarMonth === selM && d === selD) cls += ' is-selected';
-      html += `<button type="button" class="${cls}" data-day="${d}" data-month="curr">${d}</button>`;
-    }
-    // next month fill
-    const totalCells = firstDay + daysInMonth;
-    const remain = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
-    for (let d = 1; d <= remain; d++) {
-      html += `<button type="button" class="cal-day is-other-month" data-day="${d}" data-month="next">${d}</button>`;
-    }
-
-    dom.calDays.innerHTML = html;
-    dom.calDays.querySelectorAll('.cal-day').forEach(btn => {
-      btn.addEventListener('click', () => handleDayClick(btn));
-    });
-  }
-
-  function handleDayClick(btn) {
-    if (castState.resultsLocked) return;
-    const day = Number(btn.dataset.day);
-    const monthType = btn.dataset.month;
-    if (monthType === 'prev') {
-      calendarMonth -= 1;
-      if (calendarMonth < 0) { calendarMonth = 11; calendarYear -= 1; }
-    } else if (monthType === 'next') {
-      calendarMonth += 1;
-      if (calendarMonth > 11) { calendarMonth = 0; calendarYear += 1; }
-    }
-    lunarPickerDate = new Date(calendarYear, calendarMonth, day,
-      lunarPickerHour, lunarPickerMinute);
-    lunarPickerFollowsNow = false;
-    renderCalendar();
-    if (castState.mode !== 'lunar') return;
-    if (castState.hexReady) clearCastOutput();
-    else hideLunarCastResult();
-    refresh();
-    requestAnimationFrame(syncRightColumnHeight);
-  }
-
-  function handleLunarPickerChange() {
-    lunarPickerFollowsNow = false;
-    if (castState.mode !== 'lunar') return;
-    if (castState.hexReady) clearCastOutput();
-    else hideLunarCastResult();
-    refresh();
-    requestAnimationFrame(syncRightColumnHeight);
-  }
-
   // 农历时：农历换算和起卦结果
   function hideLunarCastResult() {
     lunarCastRevealed = false;
@@ -589,7 +401,7 @@ const castState = new CastStateMachine();
     }
 
     lunarCastRevealed = true;
-    lunarPickerFollowsNow = false;
+    lunarPicker.stopFollowingNow();
     updateLunarCastPanel();
     refresh();
     requestAnimationFrame(syncRightColumnHeight);
@@ -766,11 +578,11 @@ const castState = new CastStateMachine();
   window.addEventListener('resize', () => requestAnimationFrame(syncRightColumnHeight));
   window.addEventListener('load', () => {
 
-    refreshLunarPickerNow();
+    lunarPicker.refreshNow();
     requestAnimationFrame(syncRightColumnHeight);
   });
   window.addEventListener('focus', () => {
-    refreshLunarPickerNow();
+    lunarPicker.refreshNow();
     refresh();
   });
 
@@ -783,76 +595,15 @@ const castState = new CastStateMachine();
     dom.waiying.value = '';
     castState.clearSelected();
     syncNumberTileStates();
-    if (castState.mode === 'lunar') setLunarPickerToNow();
+    if (castState.mode === 'lunar') lunarPicker.setToNow();
     clearCastOutput();
     refresh();
     requestAnimationFrame(syncRightColumnHeight);
   });
   dom.question.addEventListener('input', refresh);
   dom.modeButtons.forEach(btn => btn.addEventListener('click', () => setCastMode(btn.dataset.castMode)));
-  dom.calPrev.addEventListener('click', () => {
-    if (castState.resultsLocked) return;
-    dom.calYearDrop.hidden = true;
-    calendarMonth -= 1;
-    if (calendarMonth < 0) { calendarMonth = 11; calendarYear -= 1; }
-    renderCalendar();
-  });
-  dom.calNext.addEventListener('click', () => {
-    if (castState.resultsLocked) return;
-    dom.calYearDrop.hidden = true;
-    calendarMonth += 1;
-    if (calendarMonth > 11) { calendarMonth = 0; calendarYear += 1; }
-    renderCalendar();
-  });
-  dom.calYearBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (dom.calYearDrop.hidden) {
-      openYearDrop();
-    } else {
-      dom.calYearDrop.hidden = true;
-    }
-  });
-  document.addEventListener('click', (e) => {
-    if (!dom.calYearDrop.hidden && !dom.calYearBtn.contains(e.target) && !dom.calYearDrop.contains(e.target)) {
-      dom.calYearDrop.hidden = true;
-    }
-  });
-
-  // 农历时：年份下拉
-  let yearDropBase = calendarYear - 4;
-
-  function openYearDrop() {
-    yearDropBase = calendarYear - 4;
-    renderYearDrop();
-  }
-
-  function renderYearDrop() {
-    let html = `<div class="cal-year-nav-row"><button type="button" class="cal-year-nav" data-dir="up">‹</button><button type="button" class="cal-year-nav" data-dir="down">›</button></div>`;
-    for (let y = yearDropBase; y < yearDropBase + 9; y++) {
-      const cls = y === calendarYear ? 'cal-year-opt is-picked' : 'cal-year-opt';
-      html += `<button type="button" class="${cls}" data-year="${y}">${y}</button>`;
-    }
-    dom.calYearDrop.innerHTML = html;
-    dom.calYearDrop.hidden = false;
-    dom.calYearDrop.querySelectorAll('.cal-year-opt').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        calendarYear = Number(btn.dataset.year);
-        renderCalendar();
-        dom.calYearDrop.hidden = true;
-      });
-    });
-    dom.calYearDrop.querySelectorAll('.cal-year-nav').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        yearDropBase += btn.dataset.dir === 'up' ? -9 : 9;
-        renderYearDrop();
-      });
-    });
-  }
   // 初始化农历时控件
-  buildTimeScrolls();
-  initLunarPicker();
+  lunarPicker.initialize();
 
   // API 请求
   const apiBody = () => JSON.stringify({
