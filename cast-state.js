@@ -18,6 +18,7 @@
       this._randomCasting = false;
       this._hexReady = false;
       this._resultsLocked = false;
+      this._busy = false;
     }
 
     get mode() {
@@ -48,14 +49,22 @@
       return this._resultsLocked;
     }
 
+    get isBusy() {
+      return this._busy;
+    }
+
+    get inputLocked() {
+      return this._busy || this._resultsLocked;
+    }
+
     setMode(mode) {
-      if (this._resultsLocked || mode === this._mode) return false;
+      if (this.inputLocked || mode === this._mode) return false;
       this._mode = mode;
       return true;
     }
 
     addNumber(value) {
-      if (this._resultsLocked || this._selected.length >= MAX) return false;
+      if (this.inputLocked || this._selected.length >= MAX) return false;
       this._selected.push(value);
       return true;
     }
@@ -65,7 +74,7 @@
     }
 
     setCustomValue(role, value) {
-      if (this._resultsLocked) return false;
+      if (this.inputLocked) return false;
       this._customCast[role] = value;
       return true;
     }
@@ -94,6 +103,10 @@
       this._resultsLocked = false;
     }
 
+    setBusy(value) {
+      this._busy = Boolean(value);
+    }
+
     modeName() {
       return MODE_NAMES[this._mode] || MODE_NAMES.numbers;
     }
@@ -108,6 +121,7 @@
     }
 
     canCast({hasLunarDate = false, question = ''} = {}) {
+      if (this.inputLocked) return false;
       const hasQuestion = Boolean(question.trim());
       if (this._mode === 'lunar') return hasLunarDate && hasQuestion;
       if (this._mode === 'random') return hasQuestion;

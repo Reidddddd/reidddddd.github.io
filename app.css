@@ -426,6 +426,13 @@
     font-size: 0.54rem; line-height: 1; color: rgba(255, 255, 255, 0.88);
   }
   .number-tile:active { transform: scale(0.95); }
+  .number-tile.is-locked { cursor: default; opacity: 0.7; }
+  .number-tile.is-locked:not(.selected):hover {
+    background: rgba(255, 252, 243, 0.68);
+    border-color: rgba(139, 105, 20, 0.18);
+    color: var(--text-dim);
+  }
+  .number-tile.is-locked:active { transform: none; }
 
   /* 底部农历栏 */
   .lunar-panel { display: flex; gap: 0.5rem; align-items: stretch; }

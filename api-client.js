@@ -22,6 +22,7 @@
     NETWORK: 'network',
     DISCONNECT: 'disconnect',
     CONTRACT: 'contract',
+    CANCELLED: 'cancelled',
   });
 
   class ApiRequestError extends Error {
@@ -34,24 +35,27 @@
   }
 
   // API 请求
-  async function fetchLunarData(solarDateTime) {
+  async function fetchLunarData(solarDateTime, {signal} = {}) {
     const encodedSolarDateTime = encodeURIComponent(solarDateTime);
     const response = await fetchApiResponse(
       `${API_BASE}/api/lunar-data?solar_datetime=${encodedSolarDateTime}`,
       {
         headers: API_REQUEST_HEADERS,
+        signal,
       },
     );
     if (!response.ok) throw await createHttpError(response);
     return response;
   }
 
-  async function runSSERequest(path, body, handler) {
+  async function runSSERequest(path, body, handler, {signal} = {}) {
     const response = await fetchApiResponse(`${API_BASE}${path}`, {
       method: 'POST',
       headers: {...API_REQUEST_HEADERS, 'Content-Type': 'application/json'},
       body,
+      signal,
     });
+    if (signal?.aborted) throw createCancellationError();
     if (!response.ok) throw await createHttpError(response);
     if (!response.body) {
       throw new ApiRequestError(
@@ -78,6 +82,9 @@
       // 提前结束时取消读取，避免错误连接继续占用浏览器资源。
       await reader.cancel().catch(() => {});
       if (error instanceof ApiRequestError) throw error;
+      if (isAbortError(error) || signal?.aborted) {
+        throw createCancellationError();
+      }
       throw new ApiRequestError(
         API_ERROR_KIND.DISCONNECT,
         '连接中断，结果未完整返回。',
@@ -98,15 +105,30 @@
     let response;
     try {
       response = await fetch(url, options);
-    } catch (_) {
+    } catch (error) {
+      if (isAbortError(error) || options?.signal?.aborted) {
+        throw createCancellationError();
+      }
       // fetch 失败时没有可用的 HTTP 状态，统一归类为网络错误。
       throw new ApiRequestError(
         API_ERROR_KIND.NETWORK,
         '无法连接服务，请检查网络连接后重试。',
       );
     }
+    if (options?.signal?.aborted) throw createCancellationError();
     assertApiContract(response);
     return response;
+  }
+
+  function isAbortError(error) {
+    return error?.name === 'AbortError';
+  }
+
+  function createCancellationError() {
+    return new ApiRequestError(
+      API_ERROR_KIND.CANCELLED,
+      '请求已取消。',
+    );
   }
 
   function assertApiContract(response) {

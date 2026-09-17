@@ -68,6 +68,7 @@
     }
 
     refreshNow() {
+      if (this.isLocked()) return;
       if (this.lunarPickerFollowsNow && !this.isLunarCastRevealed()) this.setToNow();
     }
 
@@ -128,6 +129,10 @@
 
     onTimeScroll(which) {
       if (this.timeScrollBusy) return;
+      if (this.isLocked()) {
+        this.setTimeScrollTo(this.lunarPickerHour, this.lunarPickerMinute);
+        return;
+      }
       const scroll = which === 'hour' ? this.dom.hourScroll : this.dom.minuteScroll;
       const current = this.closestTimeItem(scroll);
       const idx = current.value;
@@ -204,6 +209,7 @@
       });
       this.dom.calYearBtn.addEventListener('click', event => {
         event.stopPropagation();
+        if (this.isLocked()) return;
         if (this.dom.calYearDrop.hidden) {
           this.openYearDrop();
         } else {
@@ -305,6 +311,7 @@
       this.dom.calYearDrop.querySelectorAll('.cal-year-opt').forEach(btn => {
         btn.addEventListener('click', event => {
           event.stopPropagation();
+          if (this.isLocked()) return;
           this.calendarYear = Number(btn.dataset.year);
           this.renderCalendar();
           this.dom.calYearDrop.hidden = true;
@@ -313,6 +320,7 @@
       this.dom.calYearDrop.querySelectorAll('.cal-year-nav').forEach(btn => {
         btn.addEventListener('click', event => {
           event.stopPropagation();
+          if (this.isLocked()) return;
           this.yearDropBase += btn.dataset.dir === 'up' ? -9 : 9;
           this.renderYearDrop();
         });

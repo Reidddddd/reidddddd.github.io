@@ -80,9 +80,11 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
   let diviningBgFrame = null;
   let diviningBgAngle = 0;
   let diviningBgLastTime = 0;
-  let diviningBgStartTime = 0;
   let jieGuaAnimating = false;
   let jieGuaFinishPromise = null;
+  let activeOperation = null;
+  let randomRollCancel = null;
+  let diviningBgSettleCancel = null;
   const DIVINING_BG_SPEED = 0.43;
   const RESULT_REVEAL_DELAY = 1000;
   let LUNAR_CAST = null;
@@ -111,7 +113,7 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
       calPrev: $('calPrev'),
       calNext: $('calNext'),
     },
-    isLocked: () => castState.resultsLocked,
+    isLocked: () => castState.inputLocked,
     isLunarMode: () => castState.mode === 'lunar',
     isLunarCastRevealed: () => lunarCastRevealed,
     hasHexReady: () => castState.hexReady,
@@ -126,8 +128,8 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
     return lunarPicker.formatSolarDateTime(date);
   }
 
-  function fetchLunarData(date) {
-    return fetchLunarDataRequest(formatSolarDateTime(date));
+  function fetchLunarData(date, {signal} = {}) {
+    return fetchLunarDataRequest(formatSolarDateTime(date), {signal});
   }
 
   function readSolarDateTime() {
@@ -167,7 +169,7 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
     const tile = Object.assign(document.createElement('div'), {className: 'number-tile', textContent: i});
     tile.dataset.value = i;
     tile.addEventListener('click', () => {
-      if (castState.resultsLocked) return;
+      if (castState.inputLocked) return;
       castState.addNumber(i);
       syncNumberTileStates();
       if (castState.hexReady) clearCastOutput();
@@ -207,7 +209,24 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
   }
 
   function renderActionButtons() {
-    if (castState.hexReady) return;
+    if (castState.isBusy) {
+      dom.btnQiGua.disabled = true;
+      dom.btnJieGua.style.display = castState.hexReady ? '' : 'none';
+      dom.btnJieGua.disabled = true;
+      return;
+    }
+    if (castState.resultsLocked) {
+      dom.btnQiGua.disabled = true;
+      dom.btnJieGua.style.display = castState.hexReady ? '' : 'none';
+      dom.btnJieGua.disabled = true;
+      return;
+    }
+    if (castState.hexReady) {
+      dom.btnQiGua.disabled = true;
+      dom.btnJieGua.style.display = '';
+      dom.btnJieGua.disabled = false;
+      return;
+    }
     if (castState.mode === 'random' && castState.randomCasting) {
       dom.btnQiGua.disabled = true;
       dom.btnJieGua.style.display = 'none';
@@ -216,6 +235,7 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
     }
     dom.btnQiGua.disabled = !canCast();
     dom.btnJieGua.style.display = 'none';
+    dom.btnJieGua.disabled = true;
   }
 
   async function setCastMode(mode) {
@@ -230,13 +250,61 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
     refresh();
   }
 
+  // 操作生命周期与输入锁定
   function lockCastControls() {
     castState.lock();
-    dom.btnQiGua.disabled = true;
-    dom.btnJieGua.disabled = true;
+    syncInputLock();
   }
+
   function unlockCastControls() {
     castState.unlock();
+    syncInputLock();
+  }
+
+  function syncInputLock() {
+    const locked = castState.inputLocked;
+    dom.question.disabled = locked;
+    dom.waiying.disabled = locked;
+    dom.modeButtons.forEach(btn => { btn.disabled = locked; });
+    document.querySelectorAll('.number-tile').forEach(tile => {
+      tile.classList.toggle('is-locked', locked);
+      tile.setAttribute('aria-disabled', String(locked));
+    });
+    document.querySelectorAll('.custom-gua-btn, .custom-yao-btn').forEach(btn => {
+      btn.disabled = locked;
+    });
+    renderActionButtons();
+  }
+
+  function beginOperation() {
+    cancelActiveOperation();
+    const operation = {controller: new AbortController()};
+    activeOperation = operation;
+    castState.setBusy(true);
+    syncInputLock();
+    return operation;
+  }
+
+  function isActiveOperation(operation) {
+    return activeOperation === operation;
+  }
+
+  function finishOperation(operation) {
+    if (!isActiveOperation(operation)) return;
+    activeOperation = null;
+    castState.setBusy(false);
+    syncInputLock();
+  }
+
+  function cancelActiveOperation() {
+    const operation = activeOperation;
+    activeOperation = null;
+    if (operation) operation.controller.abort();
+    stopRandomRoll();
+    stopDiviningBackground();
+    jieGuaAnimating = false;
+    castState.setBusy(false);
+    syncInputLock();
   }
 
   function showConfirm(message) {
@@ -367,24 +435,26 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
     dom.lunarCastError.textContent = message;
   }
 
-  async function prepareLunarCastFromPicker() {
+  async function prepareLunarCastFromPicker(operation) {
     const date = readSolarDateTime();
     if (!date) {
       showLunarError('请选择有效的公历日期和时刻。');
       return false;
     }
 
-    dom.btnQiGua.disabled = true;
     const requestedDateTime = formatSolarDateTime(date);
     const lunarDate = new Date(date);
     // 保留早子时规则：23:00 起按次日的农历日期换算。
     if (lunarDate.getHours() >= 23) lunarDate.setDate(lunarDate.getDate() + 1);
     try {
-      const response = await fetchLunarData(lunarDate);
+      const response = await fetchLunarData(lunarDate, {
+        signal: operation.controller.signal,
+      });
       const data = await response.json();
       const lunarCast = data.lunar_cast;
       const lunarNumbers = lunarCast?.numbers;
       const minuteShu = lunarCast?.minuteShu;
+      if (!isActiveOperation(operation)) return false;
       const currentDateTime = formatSolarDateTime(readSolarDateTime());
       if (castState.mode !== 'lunar' || currentDateTime !== requestedDateTime) return false;
       if (
@@ -396,6 +466,7 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
       }
       LUNAR_CAST = lunarCast;
     } catch (error) {
+      if (!isActiveOperation(operation)) return false;
       if (error instanceof ApiRequestError) {
         const errorStatus = requestErrorStatus(error);
         const message = errorStatus.statusDetail
@@ -516,8 +587,21 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
       clearRandomTileState();
       let step = 0;
       let currentValue = null;
+      let settled = false;
       const totalSteps = Math.round(randomFloat(RANDOM_ROLL.minSteps, RANDOM_ROLL.maxSteps));
+      // 重起时主动结束当前 Promise，避免随机数流程停在 await。
+      const finish = value => {
+        if (settled) return;
+        settled = true;
+        randomTimer = null;
+        if (randomRollCancel === cancel) randomRollCancel = null;
+        dom.randomCastPanel.classList.remove('is-rolling');
+        resolve(value);
+      };
+      const cancel = () => finish(null);
+      randomRollCancel = cancel;
       const rollTile = () => {
+        if (settled) return;
         const value = randomInt1To49();
         currentValue = value;
         dom.randomNumber.textContent = value;
@@ -531,9 +615,7 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
             randomFloat(RANDOM_ROLL.jitterMin, RANDOM_ROLL.jitterMax);
           randomTimer = setTimeout(rollTile, Math.round(delay));
         } else {
-          randomTimer = null;
-          dom.randomCastPanel.classList.remove('is-rolling');
-          resolve(currentValue);
+          finish(currentValue);
         }
       };
       rollTile();
@@ -541,10 +623,11 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
   }
 
   function stopRandomRoll() {
-    if (randomTimer) {
+    if (randomTimer !== null) {
       clearTimeout(randomTimer);
       randomTimer = null;
     }
+    if (randomRollCancel) randomRollCancel();
     if (dom.randomCastPanel) dom.randomCastPanel.classList.remove('is-rolling');
   }
 
@@ -556,18 +639,24 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
     clearRandomTileState();
   }
 
-  async function pickRandomNumbers() {
+  async function pickRandomNumbers(operation) {
     resetRandomCast(false);
     for (let i = 0; i < MAX; i++) {
+      if (!isActiveOperation(operation)) return false;
       const n = await startRandomRoll();
-      if (n === null) break;
+      if (n === null || !isActiveOperation(operation)) return false;
       lightRandomTile(n, true);
       castState.addRandomNumber(n);
       refresh();
       if (i < MAX - 1) {
-        await new Promise(r => setTimeout(r, Math.round(randomFloat(RANDOM_ROLL.pauseMin, RANDOM_ROLL.pauseMax))));
+        const ready = await waitFor(
+          Math.round(randomFloat(RANDOM_ROLL.pauseMin, RANDOM_ROLL.pauseMax)),
+          operation.controller.signal,
+        );
+        if (!ready) return false;
       }
     }
+    return true;
   }
 
   // 布局同步
@@ -598,6 +687,7 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
     if (jieGuaAnimating || dom.resultContent.style.display !== 'none') {
       if (!(await showConfirm('卦解存乎，重起即散。'))) return;
     }
+    cancelActiveOperation();
     unlockCastControls();
     dom.question.value = '';
     dom.waiying.value = '';
@@ -658,6 +748,12 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
         statusDetail: '请刷新页面后重试。',
       };
     }
+    if (error.errorKind === API_ERROR_KIND.CANCELLED) {
+      return {
+        statusText: '请求已取消',
+        statusDetail: '',
+      };
+    }
     return {
       statusText: '连接出错',
       statusDetail: '请稍后重试。',
@@ -695,13 +791,9 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
     dom.hexCols.innerHTML = '';
     dom.hexPlaceholder.style.display = '';
     dom.hexPlaceholder.textContent = `${castModeName()}后，卦象显示于此`;
-    dom.btnQiGua.disabled = !canCast();
-    dom.btnJieGua.style.display = 'none';
-    dom.btnJieGua.disabled = true;
   }
 
   function beginQiGua() {
-    unlockCastControls();
     dom.hexPlaceholder.style.display = 'none';
     jieGuaResult.resetForCast();
     dom.resultContent.style.display = 'none';
@@ -717,32 +809,44 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
 
   // 起卦流程
   dom.btnQiGua.addEventListener('click', async () => {
-    if (castState.resultsLocked) return;
+    if (castState.inputLocked) return;
     if (!canCast()) return;
-    if (castState.mode === 'lunar') {
-      const lunarReady = await prepareLunarCastFromPicker();
-      if (!lunarReady) {
-        renderActionButtons();
-        requestAnimationFrame(syncRightColumnHeight);
-        return;
-      }
-    }
-    beginQiGua();
-
-    if (castState.mode === 'random') {
-      castState.setRandomCasting(true);
-      refresh();
-      await pickRandomNumbers();
-    }
-
-    jieGuaResult.setCastSnapshot(makeCastSnapshot());
+    const operation = beginOperation();
 
     try {
-      await runSSERequest('/api/qi-gua', apiBody(), handleQiGua);
+      if (castState.mode === 'lunar') {
+        const lunarReady = await prepareLunarCastFromPicker(operation);
+        if (!lunarReady || !isActiveOperation(operation)) {
+          requestAnimationFrame(syncRightColumnHeight);
+          return;
+        }
+      }
+      beginQiGua();
+
+      if (castState.mode === 'random') {
+        castState.setRandomCasting(true);
+        refresh();
+        const randomReady = await pickRandomNumbers(operation);
+        if (!randomReady || !isActiveOperation(operation)) return;
+      }
+
+      jieGuaResult.setCastSnapshot(makeCastSnapshot());
+
+      await runSSERequest(
+        '/api/qi-gua',
+        apiBody(),
+        (event, raw) => {
+          if (isActiveOperation(operation)) handleQiGua(event, raw);
+        },
+        {signal: operation.controller.signal},
+      );
     } catch (error) {
+      if (!isActiveOperation(operation)) return;
       showRequestErrorStatus(error);
       resetQiGuaErrorState();
       refresh();
+    } finally {
+      finishOperation(operation);
     }
   });
 
@@ -754,8 +858,6 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
       requestAnimationFrame(syncRightColumnHeight);
     } else if (event === 'done') {
       castState.setRandomCasting(false);
-      dom.btnQiGua.disabled = true;
-      dom.btnJieGua.style.display = ''; dom.btnJieGua.disabled = false;
       castState.setHexReady(true);
       requestAnimationFrame(syncRightColumnHeight);
     }
@@ -775,40 +877,70 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
     dom.resultTools.style.display = 'none';
     jieGuaResult.resetForInterpretation();
     jieGuaFinishPromise = null;
-    dom.btnJieGua.disabled = true;
   }
 
   function finishJieGua({showResult = true, statusText = '', statusDetail = ''} = {}) {
+    const operation = activeOperation;
+    if (!operation) return Promise.resolve();
     if (jieGuaFinishPromise) return jieGuaFinishPromise;
     if (showResult) dom.statusNotice.hidden = true;
     jieGuaFinishPromise = (async () => {
       await settleDiviningBackground();
+      if (!isActiveOperation(operation)) return;
       jieGuaAnimating = false;
       if (showResult) {
         dom.statusReminder.hidden = false;
         dom.statusSpinner.classList.add('active');
         dom.resultStatus.style.display = 'none';
         lockCastControls();
-        await delay(RESULT_REVEAL_DELAY);
+        const ready = await waitFor(RESULT_REVEAL_DELAY, operation.controller.signal);
+        if (!ready || !isActiveOperation(operation)) return;
         jieGuaResult.revealCompleteResultTabs();
       } else {
         renderErrorStatus({statusText, statusDetail});
-        dom.btnJieGua.disabled = false;
       }
-    })();
+    })().catch(error => {
+      if (!isActiveOperation(operation)) return;
+      console.error('解读结果展示失败', error);
+      stopDiviningBackground();
+      jieGuaAnimating = false;
+      unlockCastControls();
+      renderErrorStatus({
+        statusText: '解读暂时不可用',
+        statusDetail: '解读结果展示失败，请稍后重试。',
+      });
+    });
     return jieGuaFinishPromise;
   }
 
-  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  function waitFor(ms, signal) {
+    // 等待也纳入取消流程，避免重起后延迟回调继续推进旧操作。
+    return new Promise(resolve => {
+      let timer = null;
+      let settled = false;
+      const cleanup = () => signal?.removeEventListener('abort', onAbort);
+      const finish = result => {
+        if (settled) return;
+        settled = true;
+        if (timer !== null) clearTimeout(timer);
+        cleanup();
+        resolve(result);
+      };
+      const onAbort = () => finish(false);
+      timer = setTimeout(() => finish(true), ms);
+      if (signal?.aborted) finish(false);
+      else signal?.addEventListener('abort', onAbort, {once: true});
+    });
+  }
 
   function startDiviningBackground() {
+    stopDiviningBackground();
     if (!dom.bgTemple || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    if (diviningBgFrame) cancelAnimationFrame(diviningBgFrame);
     diviningBgAngle = 0;
-    diviningBgStartTime = performance.now();
-    diviningBgLastTime = diviningBgStartTime;
+    diviningBgLastTime = performance.now();
 
     const spin = now => {
+      if (diviningBgFrame === null) return;
       const delta = now - diviningBgLastTime;
       diviningBgAngle = (diviningBgAngle + delta * DIVINING_BG_SPEED) % 360;
       dom.bgTemple.style.setProperty('--bg-rotation', `${diviningBgAngle}deg`);
@@ -819,9 +951,22 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
     diviningBgFrame = requestAnimationFrame(spin);
   }
 
+  function stopDiviningBackground() {
+    // 收尾动画可能正被 await；取消时必须同时让它的 Promise 结束。
+    if (diviningBgSettleCancel) {
+      diviningBgSettleCancel();
+      return;
+    }
+    if (diviningBgFrame !== null) cancelAnimationFrame(diviningBgFrame);
+    diviningBgFrame = null;
+    diviningBgAngle = 0;
+    if (dom.bgTemple) dom.bgTemple.style.removeProperty('--bg-rotation');
+  }
+
   function settleDiviningBackground() {
     if (!dom.bgTemple) return Promise.resolve();
-    if (diviningBgFrame) cancelAnimationFrame(diviningBgFrame);
+    if (diviningBgSettleCancel) diviningBgSettleCancel();
+    if (diviningBgFrame !== null) cancelAnimationFrame(diviningBgFrame);
     diviningBgFrame = null;
 
     const startAngle = diviningBgAngle;
@@ -836,17 +981,24 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
     const duration = Math.max(240, remainingAngle / DIVINING_BG_SPEED);
 
     return new Promise(resolve => {
+      const finish = () => {
+        if (diviningBgFrame !== null) cancelAnimationFrame(diviningBgFrame);
+        diviningBgFrame = null;
+        diviningBgAngle = 0;
+        dom.bgTemple.style.removeProperty('--bg-rotation');
+        if (diviningBgSettleCancel === finish) diviningBgSettleCancel = null;
+        resolve();
+      };
+      diviningBgSettleCancel = finish;
       const settle = now => {
+        if (diviningBgSettleCancel !== finish) return;
         const progress = Math.min(1, (now - startTime) / duration);
         const angle = startAngle + (targetAngle - startAngle) * progress;
         dom.bgTemple.style.setProperty('--bg-rotation', `${angle}deg`);
         if (progress < 1) {
           diviningBgFrame = requestAnimationFrame(settle);
         } else {
-          diviningBgFrame = null;
-          diviningBgAngle = 0;
-          dom.bgTemple.style.removeProperty('--bg-rotation');
-          resolve();
+          finish();
         }
       };
 
@@ -874,11 +1026,20 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
 
   // 解卦流程
   dom.btnJieGua.addEventListener('click', async () => {
-    if (!castState.hexReady) return;
-    beginJieGua();
+    if (castState.inputLocked || !castState.hexReady) return;
+    const operation = beginOperation();
 
     try {
-      await runSSERequest('/api/jie-gua', apiBody(), handleJieGua);
+      beginJieGua();
+      await runSSERequest(
+        '/api/jie-gua',
+        apiBody(),
+        (event, raw) => {
+          if (isActiveOperation(operation)) handleJieGua(event, raw);
+        },
+        {signal: operation.controller.signal},
+      );
+      if (!isActiveOperation(operation)) return;
       finishJieGuaWhenReady();
       if (jieGuaFinishPromise) {
         await jieGuaFinishPromise;
@@ -890,11 +1051,14 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
         });
       }
     } catch (error) {
+      if (!isActiveOperation(operation)) return;
       if (jieGuaFinishPromise) {
         await jieGuaFinishPromise;
-        return;
+      } else {
+        await showJieGuaError(error);
       }
-      await showJieGuaError(error);
+    } finally {
+      finishOperation(operation);
     }
   });
 
