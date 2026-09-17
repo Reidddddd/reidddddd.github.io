@@ -25,7 +25,7 @@ API 地址和请求头在 `api-config.js` 中按环境配置：
 
 前端要求 API 响应携带 `X-API-Contract-Version: 1`；版本不匹配时不会继续解析响应。
 
-页面脚本按 `api-config.js`、`api-client.js`、`cast-state.js`、`lunar-picker.js`、`app.js` 顺序加载。
+页面脚本按 `api-config.js`、`api-client.js`、`cast-state.js`、`lunar-picker.js`、`hexagram-renderer.js`、`app.js` 顺序加载。
 
 错误展示按响应类型区分：HTTP 4xx 显示请求错误，限流显示次数提示，SSE `error` 显示服务处理失败，网络失败或流提前结束显示连接状态；DeepSeek 失败沿用后端返回的降级结果提示。
 
@@ -35,11 +35,12 @@ API 地址和请求头在 `api-config.js` 中按环境配置：
 make check
 ```
 
-当前检查会执行四个前端脚本的语法检查：
+当前检查会执行五个前端脚本的语法检查：
 
 ```bash
 node --check api-client.js
 node --check cast-state.js
 node --check lunar-picker.js
+node --check hexagram-renderer.js
 node --check app.js
 ```

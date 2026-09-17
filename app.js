@@ -19,6 +19,12 @@ const LUNAR_PICKER_MODULE = window.MYHS_LUNAR_PICKER;
 if (!LUNAR_PICKER_MODULE) throw new Error('缺少农历选择器模块');
 const {LunarPicker} = LUNAR_PICKER_MODULE;
 
+// 卦象渲染器
+const HEXAGRAM_RENDERER_MODULE = window.MYHS_HEXAGRAM_RENDERER;
+if (!HEXAGRAM_RENDERER_MODULE) throw new Error('缺少卦象渲染器模块');
+const {HexagramRenderer, escapeHtml} = HEXAGRAM_RENDERER_MODULE;
+const hexagramRenderer = new HexagramRenderer();
+
   // 页面状态
   let plainHtml = '';
   let yiLiHtml = '';
@@ -1209,70 +1215,15 @@ const {LunarPicker} = LUNAR_PICKER_MODULE;
 </html>`;
   }
 
-  // 卦象与解卦渲染
-  function renderHex(gua) {
-    return `<div class="hex-col">
-      <div class="gua-label">${escapeHtml(gua.label)}</div>
-      <div class="gua-name">${escapeHtml(gua.name)}</div>
-      <div class="gua-pair">
-        <span style="color:${gua.color_shang}">${escapeHtml(gua.sym_shang)}</span>
-        <span style="color:${gua.color_xia}">${escapeHtml(gua.sym_xia)}</span>
-      </div>
-    </div>`;
-  }
-
+  // 卦象渲染适配
   function renderHexagrams(guas) {
-    hexagramsHtml = guas.map(renderHex).join('');
+    hexagramsHtml = hexagramRenderer.renderHexagrams(guas);
     dom.hexCols.innerHTML = hexagramsHtml;
     dom.hexCols.style.display = 'flex';
     updateSaveButton();
   }
 
   function renderGuwenDetail(guas) {
-    const hasZhouYi = guas.some(gua => gua.zhou_yi);
-    if (hasZhouYi) {
-      guwenHtml = `<div class="gua-detail-cols">${guas.map(renderGuaDetail).join('')}</div>`;
-    } else {
-      guwenHtml = '';
-    }
+    guwenHtml = hexagramRenderer.renderGuwenDetail(guas);
     updateResultTabs();
-  }
-
-  function renderGuaDetail(gua) {
-    if (!gua.zhou_yi) return '<div class="gua-detail-col"></div>';
-    const detail = gua.zhou_yi;
-    return `<div class="gua-detail-col">
-      <div class="gua-detail-head">
-        <strong>${escapeHtml(gua.name)}</strong>
-      </div>
-      ${renderDetailSection('卦辞', detail.gua_ci)}
-      ${renderDetailSection('彖传', detail.tuan_zhuan)}
-      ${renderDetailSection('象传', detail.xiang_zhuan)}
-      <div class="gua-detail-title">爻辞</div>
-      <div class="yao-list">
-        ${detail.yao_ci.map(renderYaoCi).join('')}
-      </div>
-    </div>`;
-  }
-
-  function renderDetailSection(title, text) {
-    return `<div class="gua-detail-title">${escapeHtml(title)}</div>
-      <p>${escapeHtml(text)}</p>`;
-  }
-
-  function renderYaoCi(yao) {
-    const cls = yao.is_dong ? 'yao-item dong-yao' : 'yao-item';
-    return `<div class="${cls}">
-      <span>${escapeHtml(yao.yao_ming)}</span>
-      <p>${escapeHtml(yao.yao_ci)}</p>
-    </div>`;
-  }
-
-  function escapeHtml(value) {
-    return String(value)
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
   }
