@@ -33,9 +33,10 @@ API 地址和请求头在 `api-config.js` 中按环境配置：
 make check
 ```
 
-当前检查会执行两个前端脚本的语法检查：
+当前检查会执行三个前端脚本的语法检查：
 
 ```bash
 node --check api-client.js
+node --check cast-state.js
 node --check app.js
 ```

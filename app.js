@@ -1,4 +1,4 @@
-// API 客户端与全局状态
+// API 客户端
 const API_CLIENT = window.MYHS_API_CLIENT;
 if (!API_CLIENT) throw new Error('缺少 API 客户端');
 const {
@@ -8,10 +8,13 @@ const {
   runSSERequest,
 } = API_CLIENT;
 
-  const MAX = 3, MIN = 2;
-  let selected = [];
-  let castMode = 'numbers';
-  let customCast = {shang: 1, xia: 1, dong: 1};
+// 起卦状态
+const CAST_STATE_MODULE = window.MYHS_CAST_STATE;
+if (!CAST_STATE_MODULE) throw new Error('缺少起卦状态模块');
+const {CastStateMachine, MAX} = CAST_STATE_MODULE;
+const castState = new CastStateMachine();
+
+  // 页面状态
   let plainHtml = '';
   let yiLiHtml = '';
   let plainStreamText = '';
@@ -53,10 +56,7 @@ const {
     lunarDongFormula: $('lunarDongFormula'),
     confirmModal: $('confirmModal'), confirmMessage: $('confirmMessage'), confirmOk: $('confirmOk'), confirmCancel: $('confirmCancel'),
   };
-  // 起卦状态
-  let hexReady = false;
-  let randomCasting = false;
-  let randomPicked = [];
+  // 页面交互状态
   let randomTimer = null;
   let randomTiles = [];
   let diviningBgFrame = null;
@@ -64,7 +64,6 @@ const {
   let diviningBgLastTime = 0;
   let diviningBgStartTime = 0;
   let jieGuaAnimating = false;
-  let resultsLocked = false;
   let jieGuaFinishPromise = null;
   const DIVINING_BG_SPEED = 0.43;
   const RESULT_REVEAL_DELAY = 1000;
@@ -138,10 +137,10 @@ const {
     const tile = Object.assign(document.createElement('div'), {className: 'number-tile', textContent: i});
     tile.dataset.value = i;
     tile.addEventListener('click', () => {
-      if (resultsLocked) return;
-      if (selected.length < MAX) selected.push(i);
+      if (castState.resultsLocked) return;
+      castState.addNumber(i);
       syncNumberTileStates();
-      if (hexReady) clearCastOutput();
+      if (castState.hexReady) clearCastOutput();
       refresh();
     });
     dom.grid.appendChild(tile);
@@ -157,29 +156,29 @@ const {
   }
 
   function renderCastSummary() {
-    if (castMode === 'lunar') {
+    if (castState.mode === 'lunar') {
       const lunarCast = updateLunarCastPanel();
       dom.castSummaryLine1.textContent = '';
       dom.castSummaryLine2.textContent = lunarCast ? '农时既得，卦数从之' : '公历择时，卦起农定';
       dom.selectedNums.textContent = lunarCast ? lunarCast.numbers.join(' ') : '';
-    } else if (castMode === 'random') {
+    } else if (castState.mode === 'random') {
       dom.castSummaryLine1.textContent = '天运自转，数由天定';
       dom.castSummaryLine2.textContent = '三数既得，象从此生';
-      dom.selectedNums.textContent = randomPicked.join(' ');
-    } else if (castMode === 'custom') {
+      dom.selectedNums.textContent = castState.randomPicked.join(' ');
+    } else if (castState.mode === 'custom') {
       dom.castSummaryLine1.textContent = '上下卦由心，动爻随意定';
       dom.castSummaryLine2.textContent = '';
       dom.selectedNums.textContent = activeNumbers().join(' ');
     } else {
       dom.castSummaryLine1.textContent = '大衍之数五十，其用四十有九';
       dom.castSummaryLine2.textContent = '随心取数二三，以观其象所成';
-      dom.selectedNums.textContent = selected.join(' ');
+      dom.selectedNums.textContent = castState.selected.join(' ');
     }
   }
 
   function renderActionButtons() {
-    if (hexReady) return;
-    if (castMode === 'random' && randomCasting) {
+    if (castState.hexReady) return;
+    if (castState.mode === 'random' && castState.randomCasting) {
       dom.btnQiGua.disabled = true;
       dom.btnJieGua.style.display = 'none';
       dom.btnJieGua.disabled = true;
@@ -190,9 +189,7 @@ const {
   }
 
   async function setCastMode(mode) {
-    if (resultsLocked) return;
-    if (mode === castMode) return;
-    castMode = mode;
+    if (!castState.setMode(mode)) return;
     dom.modeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.castMode === mode));
     dom.numberCastPanel.hidden = mode !== 'numbers';
     dom.randomCastPanel.hidden = mode !== 'random';
@@ -204,12 +201,12 @@ const {
   }
 
   function lockCastControls() {
-    resultsLocked = true;
+    castState.lock();
     dom.btnQiGua.disabled = true;
     dom.btnJieGua.disabled = true;
   }
   function unlockCastControls() {
-    resultsLocked = false;
+    castState.unlock();
   }
 
   function showConfirm(message) {
@@ -222,7 +219,7 @@ const {
   }
 
   function clearCastOutput() {
-    hexReady = false;
+    castState.setHexReady(false);
     dom.hexCols.style.display = 'none'; dom.hexCols.innerHTML = '';
     hexagramsHtml = '';
     castSnapshot = null;
@@ -238,12 +235,12 @@ const {
     dom.resultTools.style.display = 'none';
     dom.btnQiGua.style.display = '';
     renderActionButtons();
-    if (castMode === 'random') resetRandomCast();
+    if (castState.mode === 'random') resetRandomCast();
     else {
-      randomCasting = false;
+      castState.setRandomCasting(false);
       stopRandomRoll();
     }
-    if (castMode === 'lunar') hideLunarCastResult();
+    if (castState.mode === 'lunar') hideLunarCastResult();
     plainHtml = '';
     yiLiHtml = '';
     plainStreamText = '';
@@ -254,42 +251,32 @@ const {
   }
 
   function castModeName() {
-    if (castMode === 'lunar') return '农历时起卦';
-    if (castMode === 'custom') return '自定义起卦';
-    if (castMode === 'random') return '天选数起卦';
-    return '自选数起卦';
+    return castState.modeName();
   }
 
   function makeCastSnapshot() {
-    return {
-      mode: castModeName(),
-      numbers: activeNumbers(),
-      question: dom.question.value.trim(),
-      waiYing: dom.waiying.value.trim(),
-    };
+    return castState.makeSnapshot({
+      lunarCast: LUNAR_CAST,
+      question: dom.question.value,
+      waiYing: dom.waiying.value,
+    });
   }
 
   function canCast() {
-    if (castMode === 'lunar') return Boolean(readSolarDateTime()) && Boolean(dom.question.value.trim());
-    if (castMode === 'random') return Boolean(dom.question.value.trim());
-    return activeNumbers().length >= MIN && Boolean(dom.question.value.trim());
+    return castState.canCast({
+      hasLunarDate: Boolean(readSolarDateTime()),
+      question: dom.question.value,
+    });
   }
 
   function activeNumbers() {
-    if (castMode === 'lunar') {
-      return LUNAR_CAST ? LUNAR_CAST.numbers : [];
-    }
-    if (castMode === 'random') return randomPicked.slice();
-    if (castMode === 'custom') {
-      return [customCast.shang, customCast.xia, customCast.dong];
-    }
-    return selected.slice();
+    return castState.activeNumbers(LUNAR_CAST);
   }
 
   function syncNumberTileStates() {
     document.querySelectorAll('.number-tile').forEach(tile => {
       const value = Number(tile.dataset.value);
-      const count = selected.filter(n => n === value).length;
+      const count = castState.selected.filter(n => n === value).length;
       tile.classList.toggle('selected', count > 0);
       tile.dataset.count = count > 1 ? String(count) : '';
     });
@@ -309,9 +296,8 @@ const {
     </button>`).join('');
     container.querySelectorAll('.custom-gua-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (resultsLocked) return;
-        customCast[role] = Number(btn.dataset.value);
-        if (hexReady) clearCastOutput();
+        if (!castState.setCustomValue(role, Number(btn.dataset.value))) return;
+        if (castState.hexReady) clearCastOutput();
         refreshCustomCastOptions();
         refresh();
       });
@@ -324,9 +310,8 @@ const {
     </button>`).join('');
     dom.customDongOptions.querySelectorAll('.custom-yao-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (resultsLocked) return;
-        customCast.dong = Number(btn.dataset.value);
-        if (hexReady) clearCastOutput();
+        if (!castState.setCustomValue('dong', Number(btn.dataset.value))) return;
+        if (castState.hexReady) clearCastOutput();
         refreshCustomCastOptions();
         refresh();
       });
@@ -336,10 +321,10 @@ const {
 
   function refreshCustomCastOptions() {
     document.querySelectorAll('.custom-gua-btn').forEach(btn => {
-      btn.classList.toggle('selected', customCast[btn.dataset.role] === Number(btn.dataset.value));
+      btn.classList.toggle('selected', castState.customCast[btn.dataset.role] === Number(btn.dataset.value));
     });
     document.querySelectorAll('.custom-yao-btn').forEach(btn => {
-      btn.classList.toggle('selected', customCast.dong === Number(btn.dataset.value));
+      btn.classList.toggle('selected', castState.customCast.dong === Number(btn.dataset.value));
     });
   }
 
@@ -515,7 +500,7 @@ const {
   }
 
   function handleDayClick(btn) {
-    if (resultsLocked) return;
+    if (castState.resultsLocked) return;
     const day = Number(btn.dataset.day);
     const monthType = btn.dataset.month;
     if (monthType === 'prev') {
@@ -529,8 +514,8 @@ const {
       lunarPickerHour, lunarPickerMinute);
     lunarPickerFollowsNow = false;
     renderCalendar();
-    if (castMode !== 'lunar') return;
-    if (hexReady) clearCastOutput();
+    if (castState.mode !== 'lunar') return;
+    if (castState.hexReady) clearCastOutput();
     else hideLunarCastResult();
     refresh();
     requestAnimationFrame(syncRightColumnHeight);
@@ -538,8 +523,8 @@ const {
 
   function handleLunarPickerChange() {
     lunarPickerFollowsNow = false;
-    if (castMode !== 'lunar') return;
-    if (hexReady) clearCastOutput();
+    if (castState.mode !== 'lunar') return;
+    if (castState.hexReady) clearCastOutput();
     else hideLunarCastResult();
     refresh();
     requestAnimationFrame(syncRightColumnHeight);
@@ -581,7 +566,7 @@ const {
       const lunarNumbers = lunarCast?.numbers;
       const minuteShu = lunarCast?.minuteShu;
       const currentDateTime = formatSolarDateTime(readSolarDateTime());
-      if (castMode !== 'lunar' || currentDateTime !== requestedDateTime) return false;
+      if (castState.mode !== 'lunar' || currentDateTime !== requestedDateTime) return false;
       if (
         !Array.isArray(lunarNumbers) ||
         lunarNumbers.length !== 3 ||
@@ -705,7 +690,7 @@ const {
 
   function startRandomRoll() {
     return new Promise(resolve => {
-      if (castMode !== 'random') { resolve(null); return; }
+      if (castState.mode !== 'random') { resolve(null); return; }
       stopRandomRoll();
       dom.randomCastPanel.classList.add('is-rolling');
       clearRandomTileState();
@@ -745,8 +730,8 @@ const {
 
   function resetRandomCast(resetCasting = true) {
     stopRandomRoll();
-    if (resetCasting) randomCasting = false;
-    randomPicked = [];
+    if (resetCasting) castState.setRandomCasting(false);
+    castState.clearRandomNumbers();
     dom.randomNumber.textContent = '';
     clearRandomTileState();
   }
@@ -757,7 +742,7 @@ const {
       const n = await startRandomRoll();
       if (n === null) break;
       lightRandomTile(n, true);
-      randomPicked.push(n);
+      castState.addRandomNumber(n);
       refresh();
       if (i < MAX - 1) {
         await new Promise(r => setTimeout(r, Math.round(randomFloat(RANDOM_ROLL.pauseMin, RANDOM_ROLL.pauseMax))));
@@ -796,9 +781,9 @@ const {
     unlockCastControls();
     dom.question.value = '';
     dom.waiying.value = '';
-    selected = [];
+    castState.clearSelected();
     syncNumberTileStates();
-    if (castMode === 'lunar') setLunarPickerToNow();
+    if (castState.mode === 'lunar') setLunarPickerToNow();
     clearCastOutput();
     refresh();
     requestAnimationFrame(syncRightColumnHeight);
@@ -806,14 +791,14 @@ const {
   dom.question.addEventListener('input', refresh);
   dom.modeButtons.forEach(btn => btn.addEventListener('click', () => setCastMode(btn.dataset.castMode)));
   dom.calPrev.addEventListener('click', () => {
-    if (resultsLocked) return;
+    if (castState.resultsLocked) return;
     dom.calYearDrop.hidden = true;
     calendarMonth -= 1;
     if (calendarMonth < 0) { calendarMonth = 11; calendarYear -= 1; }
     renderCalendar();
   });
   dom.calNext.addEventListener('click', () => {
-    if (resultsLocked) return;
+    if (castState.resultsLocked) return;
     dom.calYearDrop.hidden = true;
     calendarMonth += 1;
     if (calendarMonth > 11) { calendarMonth = 0; calendarYear += 1; }
@@ -871,7 +856,7 @@ const {
 
   // API 请求
   const apiBody = () => JSON.stringify({
-    cast_mode: castMode,
+    cast_mode: castState.mode,
     numbers: activeNumbers(),
     question: dom.question.value.trim(),
     wai_ying: dom.waiying.value.trim(),
@@ -945,8 +930,7 @@ const {
   }
 
   function resetQiGuaErrorState() {
-    hexReady = false;
-    randomCasting = false;
+    castState.resetQiGuaProgress();
     hexagramsHtml = '';
     castSnapshot = null;
     dom.hexCols.style.display = 'none';
@@ -978,14 +962,14 @@ const {
     guwenHtml = '';
     activeResultView = 'guwen';
     updateResultTabs();
-    hexReady = false;
+    castState.setHexReady(false);
   }
 
   // 起卦流程
   dom.btnQiGua.addEventListener('click', async () => {
-    if (resultsLocked) return;
+    if (castState.resultsLocked) return;
     if (!canCast()) return;
-    if (castMode === 'lunar') {
+    if (castState.mode === 'lunar') {
       const lunarReady = await prepareLunarCastFromPicker();
       if (!lunarReady) {
         renderActionButtons();
@@ -995,8 +979,8 @@ const {
     }
     beginQiGua();
 
-    if (castMode === 'random') {
-      randomCasting = true;
+    if (castState.mode === 'random') {
+      castState.setRandomCasting(true);
       refresh();
       await pickRandomNumbers();
     }
@@ -1019,10 +1003,10 @@ const {
       renderHexagrams(data.guas);
       requestAnimationFrame(syncRightColumnHeight);
     } else if (event === 'done') {
-      randomCasting = false;
+      castState.setRandomCasting(false);
       dom.btnQiGua.disabled = true;
       dom.btnJieGua.style.display = ''; dom.btnJieGua.disabled = false;
-      hexReady = true;
+      castState.setHexReady(true);
       requestAnimationFrame(syncRightColumnHeight);
     }
   }
@@ -1030,7 +1014,7 @@ const {
   function beginJieGua() {
     jieGuaAnimating = true;
     startDiviningBackground();
-    if (castMode === 'random') stopRandomRoll();
+    if (castState.mode === 'random') stopRandomRoll();
     dom.resultPlaceholder.style.display = 'none';
     dom.statusNotice.hidden = false;
     dom.statusReminder.hidden = false;
@@ -1172,7 +1156,7 @@ const {
 
   // 解卦流程
   dom.btnJieGua.addEventListener('click', async () => {
-    if (!hexReady) return;
+    if (!castState.hexReady) return;
     beginJieGua();
 
     try {
