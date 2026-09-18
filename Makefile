@@ -7,3 +7,4 @@ check:
 	node --check hexagram-renderer.js
 	node --check jie-gua-result.js
 	node --check app.js
+	node --check tests/browser-tests.js

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>梅花易数浏览器测试</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+      color: #3d3226;
+      background: #f5f0e8;
+    }
+
+    body {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    button {
+      padding: 0.45rem 0.8rem;
+      cursor: pointer;
+    }
+
+    #summary {
+      margin: 1rem 0;
+      font-weight: 700;
+    }
+
+    #summary.is-success {
+      color: #246b3a;
+    }
+
+    #summary.is-failure {
+      color: #a12828;
+    }
+
+    #results {
+      display: grid;
+      gap: 0.5rem;
+      padding: 0;
+      list-style: none;
+    }
+
+    .test-result {
+      padding: 0.65rem 0.8rem;
+      border: 1px solid #d4c8b0;
+      border-radius: 6px;
+      background: #fffef9;
+    }
+
+    .test-result.is-pass::before {
+      color: #246b3a;
+      content: "✓ ";
+    }
+
+    .test-result.is-fail::before {
+      color: #a12828;
+      content: "✗ ";
+    }
+
+    .test-error {
+      display: block;
+      margin-top: 0.35rem;
+      color: #a12828;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>梅花易数浏览器测试</h1>
+  <p>此页面只加载前端拆分模块，不会请求真实 API。</p>
+  <button type="button" id="runTests">重新运行</button>
+  <div id="summary">准备测试……</div>
+  <ul id="results"></ul>
+
+  <script>
+    window.MYHS_API_CONFIG = {
+      environment: 'production',
+      environments: {
+        production: {
+          baseUrl: 'https://browser-test.invalid',
+          headers: {},
+        },
+      },
+    };
+  </script>
+  <script src="../api-client.js"></script>
+  <script src="../cast-state.js"></script>
+  <script src="../hexagram-renderer.js"></script>
+  <script src="../jie-gua-result.js"></script>
+  <script src="browser-tests.js"></script>
+</body>
+</html>

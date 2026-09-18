@@ -37,7 +37,7 @@ API 地址和请求头在 `api-config.js` 中按环境配置：
 make check
 ```
 
-当前检查会执行六个前端脚本的语法检查：
+当前检查会执行七个前端脚本的语法检查：
 
 ```bash
 node --check api-client.js
@@ -46,4 +46,13 @@ node --check lunar-picker.js
 node --check hexagram-renderer.js
 node --check jie-gua-result.js
 node --check app.js
+node --check tests/browser-tests.js
 ```
+
+浏览器模块测试页面：
+
+```text
+http://127.0.0.1:9999/tests/browser-tests.html
+```
+
+测试页面不请求真实 API，会在浏览器中覆盖 SSE 分片解析、四种起卦模式和解卦结果标签切换。
