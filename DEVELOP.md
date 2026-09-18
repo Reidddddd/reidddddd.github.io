@@ -33,6 +33,10 @@ API 地址和请求头在 `api-config.js` 中按环境配置：
 
 只有在需要代码转译、资源压缩、文件指纹或构建产物管理时，才重新评估引入构建工具。届时需要同时承担 Node.js 版本、依赖锁定、构建流水线和本地部署方式的维护成本。
 
+## GitHub Pages 来源
+
+生产站点 `https://reidddddd.github.io/` 由本仓库的 `pisces` 分支根目录提供。后端仓库中的旧模板和静态资源仅作为回退路径，不作为 GitHub Pages 来源；正式前端页面只在本仓库维护。
+
 前端要求 API 响应携带 `X-API-Contract-Version: 1`；版本不匹配时不会继续解析响应。
 
 页面脚本按 `api-config.js`、`api-client.js`、`cast-state.js`、`lunar-picker.js`、`hexagram-renderer.js`、`jie-gua-result.js`、`app.js` 顺序加载。
