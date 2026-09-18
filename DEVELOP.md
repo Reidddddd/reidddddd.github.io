@@ -23,6 +23,16 @@ API 地址和请求头在 `api-config.js` 中按环境配置：
 本地前后端联调时，还需要把后端 `CORS_ORIGIN` 设置为
 `http://127.0.0.1:9999`。
 
+## 部署决策
+
+当前保留无构建依赖的静态部署方式，不引入 npm、打包器或前端构建流水线：
+
+- GitHub Pages 可直接提供 HTML、CSS 和 JavaScript 静态文件。
+- 脚本加载顺序已经在 `index.html` 中明确，便于定位运行时问题。
+- `make check` 和浏览器测试页覆盖了当前需要的基础检查。
+
+只有在需要代码转译、资源压缩、文件指纹或构建产物管理时，才重新评估引入构建工具。届时需要同时承担 Node.js 版本、依赖锁定、构建流水线和本地部署方式的维护成本。
+
 前端要求 API 响应携带 `X-API-Contract-Version: 1`；版本不匹配时不会继续解析响应。
 
 页面脚本按 `api-config.js`、`api-client.js`、`cast-state.js`、`lunar-picker.js`、`hexagram-renderer.js`、`jie-gua-result.js`、`app.js` 顺序加载。
