@@ -42,6 +42,8 @@ API 地址和请求头在 `api-config.js` 中按环境配置：
 
 前端要求 API 响应携带 `X-API-Contract-Version: 1`；版本不匹配时不会继续解析响应。
 
+完整请求、响应和 SSE 事件定义见 [API_CONTRACT.md](API_CONTRACT.md)。契约变更时，必须同步更新后端仓库的契约文档、测试和接口实现。
+
 页面脚本按 `api-config.js`、`api-client.js`、`cast-state.js`、`lunar-picker.js`、`hexagram-renderer.js`、`jie-gua-result.js`、`app.js` 顺序加载。
 
 错误展示按响应类型区分：HTTP 4xx 显示请求错误，限流显示次数提示，SSE `error` 显示服务处理失败，网络失败或流提前结束显示连接状态；DeepSeek 失败沿用后端返回的降级结果提示。

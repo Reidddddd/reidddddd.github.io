@@ -63,7 +63,7 @@
   async function testSSEClient() {
     const events = [];
     const reader = makeReader([
-      ': keep-alive\n\nevent: progress\ndata: 第一行',
+      'event: heartbeat\ndata: ""\n\nevent: progress\ndata: 第一行',
       '\ndata: 第二行\n\n',
       'event: done\ndata: {}\n\n',
     ]);
@@ -101,7 +101,7 @@
     assertEqual(requestOptions.body, '{"question":"测试"}', 'SSE 请求体错误');
     assertDeepEqual(
       events,
-      [['progress', '第一行\n第二行'], ['done', '{}']],
+      [['heartbeat', ''], ['progress', '第一行\n第二行'], ['done', '{}']],
       'SSE 事件解析错误',
     );
     assert(reader.wasReleased(), 'SSE 读取器没有释放');
@@ -129,6 +129,7 @@
       ['progress', '正在起卦排盘……'],
       ['hexagrams', hexagramsPayload],
       ['progress', '正在解卦，请稍候……'],
+      ['heartbeat', ''],
       ['yi_li_chunk', '专业片段'],
       ['result_chunk', '白话片段'],
       ['result', {html: '<p>白话结果</p>'}],
