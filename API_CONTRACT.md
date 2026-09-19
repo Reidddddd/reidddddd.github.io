@@ -5,6 +5,11 @@
 
 ## 请求
 
+### `GET /api/health`
+
+返回 `{"status":"ok"}`，表示 FastAPI 进程可以响应；该接口不检查 DeepSeek 等外部服务
+是否可用。
+
 ### `GET /api/lunar-data`
 
 可选查询参数 `solar_datetime` 使用 `YYYY-MM-DDTHH:MM` 格式。省略时使用当前本地时间。
