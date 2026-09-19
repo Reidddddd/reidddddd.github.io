@@ -10,6 +10,7 @@
   };
   const testCases = [
     ['SSE 客户端解析分片、多行 data 与注释', testSSEClient],
+    ['前后端 SSE 事件与 payload 契约', testSSEContract],
     ['起卦状态覆盖四种模式', testCastModes],
     ['解卦结果标签切换与保存状态', testResultTabs],
   ];
@@ -52,6 +53,10 @@
         return released;
       },
     };
+  }
+
+  function makeSSEEvent(event, data) {
+    return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   }
 
   // API 客户端测试
@@ -100,6 +105,85 @@
       'SSE 事件解析错误',
     );
     assert(reader.wasReleased(), 'SSE 读取器没有释放');
+  }
+
+  // 前后端 SSE 事件和 payload 契约测试。
+  async function testSSEContract() {
+    const hexagramsPayload = {
+      guas: [{
+        label: '本卦',
+        name: '乾卦',
+        sym_shang: '☰',
+        sym_xia: '☰',
+        color_shang: '#8b2500',
+        color_xia: '#8b2500',
+        zhou_yi: {
+          gua_ci: '元亨利贞。',
+          tuan_zhuan: '大哉乾元。',
+          xiang_zhuan: '天行健。',
+          yao_ci: [{yao_ming: '初九', yao_ci: '潜龙勿用。', is_dong: true}],
+        },
+      }],
+    };
+    const expectedEvents = [
+      ['progress', '正在起卦排盘……'],
+      ['hexagrams', hexagramsPayload],
+      ['progress', '正在解卦，请稍候……'],
+      ['yi_li_chunk', '专业片段'],
+      ['result_chunk', '白话片段'],
+      ['result', {html: '<p>白话结果</p>'}],
+      ['yi_li', {html: '<p>专业结果</p>'}],
+      ['done', ''],
+    ];
+    const streamText = expectedEvents
+      .map(([event, data]) => makeSSEEvent(event, data))
+      .join('');
+    const reader = makeReader([
+      streamText.slice(0, 23),
+      streamText.slice(23, 91),
+      streamText.slice(91),
+    ]);
+    const events = [];
+    const originalFetch = global.fetch;
+    let requestUrl = '';
+    let requestBody = '';
+
+    global.fetch = async (url, options) => {
+      requestUrl = url;
+      requestBody = options.body;
+      return {
+        ok: true,
+        status: 200,
+        headers: new global.Headers({'X-API-Contract-Version': '1'}),
+        body: {getReader: () => reader},
+      };
+    };
+
+    try {
+      await API_CLIENT.runSSERequest(
+        '/api/jie-gua',
+        JSON.stringify({numbers: [8, 13, 5], question: '测试'}),
+        (event, rawData) => {
+          let data;
+          try {
+            data = JSON.parse(rawData);
+          } catch (_) {
+            data = rawData;
+          }
+          events.push([event, data]);
+        },
+      );
+    } finally {
+      global.fetch = originalFetch;
+    }
+
+    assertEqual(requestUrl, 'https://browser-test.invalid/api/jie-gua', '解卦请求地址错误');
+    assertEqual(
+      requestBody,
+      JSON.stringify({numbers: [8, 13, 5], question: '测试'}),
+      '解卦请求体错误',
+    );
+    assertDeepEqual(events, expectedEvents, '前后端 SSE 事件或 payload 不一致');
   }
 
   // 起卦状态测试
@@ -200,6 +284,23 @@
       });
       result.setHexagramsHtml('<div>卦象</div>');
       result.setGuwenHtml('<p>古文</p>');
+      result.appendStreamText('baihua', '白话');
+      result.appendStreamText('baihua', '片段');
+      assertEqual(
+        fixture.dom.resultContent.textContent,
+        '白话片段',
+        '白话流式片段没有按顺序累积',
+      );
+      result.appendStreamText('yili', '专业片段');
+      assertEqual(
+        fixture.dom.resultContent.textContent,
+        '专业片段',
+        '易理流式片段没有按顺序累积',
+      );
+      assert(
+        fixture.dom.btnSaveResult.disabled,
+        '流式结果未完成时保存按钮不应可用',
+      );
       result.renderResult({html: '<p>白话</p>'});
       result.setYiLi({html: '<p>易理</p>'});
       result.revealCompleteResultTabs();
