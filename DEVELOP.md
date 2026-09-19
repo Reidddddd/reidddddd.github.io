@@ -14,6 +14,8 @@ python3 -m http.server 9999 --bind 0.0.0.0
 http://127.0.0.1:9999
 ```
 
+Node.js 版本由 `.nvmrc` 锁定；使用 nvm 时可运行 `nvm use` 切换到项目版本。
+
 API 地址和请求头在 `api-config.js` 中按环境配置：
 
 - `auto`：本地页面自动请求 `http://127.0.0.1:8888`，其他页面使用生产 API。
@@ -30,6 +32,7 @@ API 地址和请求头在 `api-config.js` 中按环境配置：
 - GitHub Pages 可直接提供 HTML、CSS 和 JavaScript 静态文件。
 - 脚本加载顺序已经在 `index.html` 中明确，便于定位运行时问题。
 - `make check` 和浏览器测试页覆盖了当前需要的基础检查。
+- CI 使用 `.nvmrc` 中锁定的 Node.js 版本运行 `make check`。
 
 只有在需要代码转译、资源压缩、文件指纹或构建产物管理时，才重新评估引入构建工具。届时需要同时承担 Node.js 版本、依赖锁定、构建流水线和本地部署方式的维护成本。
 
