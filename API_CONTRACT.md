@@ -10,6 +10,18 @@
 返回 `{"status":"ok"}`，表示 FastAPI 进程可以响应；该接口不检查 DeepSeek 等外部服务
 是否可用。
 
+### `GET /api/version`
+
+返回应用名、部署版本标签和 API 契约版本，不返回部署路径、模型密钥或其他敏感配置。
+
+```json
+{
+  "name": "myhs",
+  "version": "unreleased",
+  "api_contract_version": "1"
+}
+```
+
 ### `GET /api/lunar-data`
 
 可选查询参数 `solar_datetime` 使用 `YYYY-MM-DDTHH:MM` 格式。省略时使用当前本地时间。
