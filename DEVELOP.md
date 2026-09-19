@@ -25,6 +25,8 @@ API 地址和请求头在 `api-config.js` 中按环境配置：
 本地前后端联调时，还需要把后端 `CORS_ORIGIN` 设置为
 `http://127.0.0.1:9999`。
 
+后端服务不在本仓库启动或管理；前端只通过 `api-config.js` 选择 API 地址。
+
 ## 部署决策
 
 当前保留无构建依赖的静态部署方式，不引入 npm、打包器或前端构建流水线：
@@ -39,6 +41,9 @@ API 地址和请求头在 `api-config.js` 中按环境配置：
 ## GitHub Pages 来源
 
 生产站点 `https://reidddddd.github.io/` 由本仓库的 `pisces` 分支根目录提供。后端仓库中的旧模板和静态资源仅作为回退路径，不作为 GitHub Pages 来源；正式前端页面只在本仓库维护。
+
+生产 API 地址唯一配置在 `api-config.js` 的 `production.baseUrl`。如果生产 API 地址
+发生变化，只更新这里并重新发布 `pisces`；不要在 `app.js` 或测试文件中重复配置。
 
 前端要求 API 响应携带 `X-API-Contract-Version: 1`；版本不匹配时不会继续解析响应。
 
