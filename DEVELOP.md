@@ -19,11 +19,21 @@ Node.js 版本由 `.nvmrc` 锁定；使用 nvm 时可运行 `nvm use` 切换到�
 API 地址和请求头在 `api-config.js` 中按环境配置：
 
 - `auto`：本地页面自动请求 `http://127.0.0.1:8888`，其他页面使用生产 API。
-- `test`：将 `environment` 改为 `test`，并填入测试 API 地址。
+- `test`：将 `environment` 临时改为 `test`，请求本地 SSH 隧道转发的测试 API
+  `http://127.0.0.1:8889`。
 - `production`：GitHub Pages 使用当前生产 API 地址。
 
 本地前后端联调时，还需要把后端 `CORS_ORIGIN` 设置为
 `http://127.0.0.1:9999`。
+
+测试实例端口转发：
+
+```bash
+ssh -N -L 8889:127.0.0.1:8889 ubuntu@<ip>
+```
+
+灰度测试结束后，将 `api-config.js` 的 `environment` 恢复为 `auto`；不要让公开的
+GitHub Pages 页面使用 `test` 配置。
 
 后端服务不在本仓库启动或管理；前端只通过 `api-config.js` 选择 API 地址。
 

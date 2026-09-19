@@ -7,8 +7,8 @@ window.MYHS_API_CONFIG = {
       headers: {},
     },
     test: {
-      // 有测试服务时填写对应地址，并将上面的 environment 改为 test。
-      baseUrl: '',
+      // 本地灰度测试通过 SSH 隧道访问 Oracle 测试实例。
+      baseUrl: 'http://127.0.0.1:8889',
       headers: {},
     },
     production: {
