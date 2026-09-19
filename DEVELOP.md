@@ -63,6 +63,8 @@ node --check app.js
 node --check tests/browser-tests.js
 ```
 
+GitHub Actions 会在 `pisces` 分支的 push 和 Pull Request 上运行同一套 `make check`。
+
 浏览器模块测试页面：
 
 ```text
