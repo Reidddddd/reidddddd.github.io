@@ -89,11 +89,13 @@
       });
       form.reset();
       const refreshed = await loadEntries({reset: true});
-      setStatus(
-        dom.wallStatus,
-        refreshed ? '回复已留。' : '回复已留，但笺集暂时未刷新。',
-        refreshed ? 'success' : 'error',
-      );
+      if (!refreshed) {
+        setStatus(
+          dom.wallStatus,
+          '回复已留，但笺集暂时未刷新。',
+          'error',
+        );
+      }
     } catch (error) {
       setStatus(
         status,
