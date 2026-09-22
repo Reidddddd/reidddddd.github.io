@@ -48,6 +48,33 @@
     return response;
   }
 
+  async function fetchGuestbook({limit = 20, offset = 0, signal} = {}) {
+    const query = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    });
+    const response = await fetchApiResponse(
+      `${API_BASE}/api/guestbook?${query.toString()}`,
+      {
+        headers: API_REQUEST_HEADERS,
+        signal,
+      },
+    );
+    if (!response.ok) throw await createHttpError(response);
+    return response.json();
+  }
+
+  async function createGuestbookEntry({nickname, content}, {signal} = {}) {
+    const response = await fetchApiResponse(`${API_BASE}/api/guestbook`, {
+      method: 'POST',
+      headers: {...API_REQUEST_HEADERS, 'Content-Type': 'application/json'},
+      body: JSON.stringify({nickname, content}),
+      signal,
+    });
+    if (!response.ok) throw await createHttpError(response);
+    return response.json();
+  }
+
   async function runSSERequest(path, body, handler, {signal} = {}) {
     const response = await fetchApiResponse(`${API_BASE}${path}`, {
       method: 'POST',
@@ -263,6 +290,8 @@
   global.MYHS_API_CLIENT = Object.freeze({
     API_ERROR_KIND,
     ApiRequestError,
+    createGuestbookEntry,
+    fetchGuestbook,
     fetchLunarData,
     runSSERequest,
   });

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>留笺 · 梅花易数</title>
+  <link rel="stylesheet" href="site-background.css">
+  <link rel="stylesheet" href="site-tabs.css">
+  <link rel="stylesheet" href="guestbook.css?v=adaptive-height-2">
+</head>
+<body>
+  <div class="bg-temple" aria-hidden="true">
+    <div class="tai-ji"></div>
+    <span class="gua gua-n">☰︎</span>
+    <span class="gua gua-nw">☱︎</span>
+    <span class="gua gua-w">☲︎</span>
+    <span class="gua gua-sw">☳︎</span>
+    <span class="gua gua-s">☷︎</span>
+    <span class="gua gua-se">☶︎</span>
+    <span class="gua gua-e">☵︎</span>
+    <span class="gua gua-ne">☴︎</span>
+  </div>
+
+  <main class="guestbook-page">
+    <nav class="site-tabs" aria-label="站点导航">
+      <a class="site-tab" href="./">梅花易数</a>
+      <a class="site-tab" href="guestbook.html" aria-current="page">留笺</a>
+    </nav>
+
+    <header class="guestbook-header">
+      <div class="guestbook-heading">
+        <p>言贵有益，语贵有德</p>
+      </div>
+    </header>
+
+    <div class="guestbook-layout">
+      <section class="guestbook-card compose-card" aria-labelledby="composeTitle">
+        <h2 id="composeTitle">留笺</h2>
+        <p class="section-intro">所留之笺，勿涉私隐</p>
+        <form id="guestbookForm">
+          <div class="form-field">
+            <label for="guestbookNickname">别号<span>（自拟）</span></label>
+            <input
+              id="guestbookNickname"
+              name="nickname"
+              type="text"
+              maxlength="20"
+              autocomplete="nickname"
+              placeholder="佚名"
+            >
+          </div>
+          <div class="form-field">
+            <label for="guestbookContent">笺文</label>
+            <textarea
+              id="guestbookContent"
+              name="content"
+              rows="6"
+              maxlength="500"
+              required
+              placeholder="请留一笺……"
+            ></textarea>
+          </div>
+          <div class="form-actions">
+            <span id="guestbookCharCount" class="char-count">0 / 500</span>
+            <button type="submit" id="guestbookSubmit" class="submit-button">投笺</button>
+          </div>
+          <p id="guestbookFormStatus" class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="guestbook-card wall-card" aria-labelledby="wallTitle">
+        <h2 id="wallTitle">笺集</h2>
+        <p id="guestbookWallStatus" class="wall-status" role="status" aria-live="polite">正在载入笺文……</p>
+        <div class="entry-scroll">
+          <div id="guestbookEntries" class="entry-list"></div>
+          <button type="button" id="guestbookLoadMore" class="load-more" hidden>续阅笺文</button>
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <script src="api-config.js"></script>
+  <script src="api-client.js"></script>
+  <script src="guestbook.js?v=adaptive-height-2"></script>
+</body>
+</html>
