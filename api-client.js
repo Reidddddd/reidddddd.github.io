@@ -75,6 +75,25 @@
     return response.json();
   }
 
+  async function createGuestbookReply(
+    entryId,
+    {nickname, content},
+    {signal} = {},
+  ) {
+    const encodedEntryId = encodeURIComponent(String(entryId));
+    const response = await fetchApiResponse(
+      `${API_BASE}/api/guestbook/${encodedEntryId}/replies`,
+      {
+        method: 'POST',
+        headers: {...API_REQUEST_HEADERS, 'Content-Type': 'application/json'},
+        body: JSON.stringify({nickname, content}),
+        signal,
+      },
+    );
+    if (!response.ok) throw await createHttpError(response);
+    return response.json();
+  }
+
   async function runSSERequest(path, body, handler, {signal} = {}) {
     const response = await fetchApiResponse(`${API_BASE}${path}`, {
       method: 'POST',
@@ -291,6 +310,7 @@
     API_ERROR_KIND,
     ApiRequestError,
     createGuestbookEntry,
+    createGuestbookReply,
     fetchGuestbook,
     fetchLunarData,
     runSSERequest,

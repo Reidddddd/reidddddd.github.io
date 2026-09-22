@@ -240,12 +240,15 @@ a {
   margin-top: 0;
 }
 
-.form-status.is-success {
+.form-status.is-success,
+.wall-status.is-success,
+.reply-status.is-success {
   color: #477248;
 }
 
 .form-status.is-error,
-.wall-status.is-error {
+.wall-status.is-error,
+.reply-status.is-error {
   color: #a12828;
 }
 
@@ -277,7 +280,7 @@ a {
 
 .entry-line {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
   align-items: start;
   column-gap: 0;
 }
@@ -314,6 +317,138 @@ a {
   font-size: 0.74rem;
   line-height: 1.68;
   white-space: nowrap;
+}
+
+.entry-actions {
+  display: flex;
+  align-items: flex-start;
+  margin-left: 0.7rem;
+  line-height: 1.68;
+  white-space: nowrap;
+}
+
+.reply-toggle {
+  display: block;
+  border: 0;
+  padding: 0;
+  color: var(--guestbook-accent);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.78rem;
+  line-height: 1.68;
+}
+
+.reply-toggle:hover {
+  color: var(--guestbook-accent-light);
+}
+
+.reply-thread {
+  margin: 0.35rem 0 0 0.9rem;
+  padding-left: 0.7rem;
+  border-left: 1px dotted var(--guestbook-border);
+}
+
+.reply-thread[hidden] {
+  display: none;
+}
+
+.reply-list {
+  display: grid;
+  gap: 0.2rem;
+  margin-bottom: 0.45rem;
+}
+
+.reply-item {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: start;
+  color: var(--guestbook-dim);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.reply-nickname {
+  color: var(--guestbook-accent);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.reply-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.reply-time {
+  margin-left: 0.7rem;
+  color: var(--guestbook-dim);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.reply-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.4rem;
+}
+
+.reply-form-fields {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.reply-form input,
+.reply-form textarea {
+  width: 100%;
+  border: 1px solid var(--guestbook-border);
+  border-radius: 5px;
+  padding: 0.28rem 0.45rem;
+  color: var(--guestbook-text);
+  background: var(--guestbook-tile);
+  font-family: inherit;
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.reply-form textarea {
+  min-height: 2.4rem;
+  resize: vertical;
+}
+
+.reply-form input:focus,
+.reply-form textarea:focus {
+  border-color: var(--guestbook-accent-light);
+}
+
+.reply-submit {
+  border: 0;
+  border-radius: 5px;
+  padding: 0.3rem 0.65rem;
+  color: #fff;
+  background: var(--guestbook-accent);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.reply-submit:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.reply-status {
+  min-height: 1.2rem;
+  margin-top: 0.3rem;
+  color: var(--guestbook-dim);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.reply-status:empty {
+  min-height: 0;
+  margin-top: 0;
 }
 
 .empty-state {
