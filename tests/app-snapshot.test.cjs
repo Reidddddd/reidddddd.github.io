@@ -3,66 +3,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
+const {createDocument} = require('./helpers/dom.cjs');
 
 const frontendRoot = path.resolve(__dirname, '..');
 
-// 只模拟控制流程用到的 DOM，不启动浏览器，也不请求真实服务。
-class Element {
-  constructor() {
-    this.children = [];
-    this.dataset = {};
-    this.events = new Map();
-    this.className = '';
-    this.value = '';
-    this.style = {setProperty() {}, removeProperty() {}};
-    this.classList = {
-      toggle: (name, enabled) => {
-        const classes = new Set(this.className.split(' ').filter(Boolean));
-        if (enabled) classes.add(name);
-        else classes.delete(name);
-        this.className = [...classes].join(' ');
-      },
-      add: name => this.classList.toggle(name, true),
-      remove: name => this.classList.toggle(name, false),
-    };
-  }
-
-  addEventListener(type, callback) {
-    this.events.set(type, callback);
-  }
-
-  appendChild(child) {
-    this.children.push(child);
-  }
-
-  setAttribute(name, value) {
-    this[name] = value;
-  }
-
-  querySelectorAll(selector) {
-    const children = this.children.flatMap(child => [child, ...child.querySelectorAll('*')]);
-    return children.filter(child => selector === '*'
-      || (selector.startsWith('.') && child.className.split(' ').includes(selector.slice(1))));
-  }
-}
-
 function createPage() {
-  const elements = new Map();
-  const body = new Element();
-  const document = {
-    body,
-    createElement: () => new Element(),
-    getElementById(id) {
-      if (!elements.has(id)) {
-        const element = new Element();
-        elements.set(id, element);
-        body.appendChild(element);
-      }
-      return elements.get(id);
-    },
-    querySelectorAll: selector => body.querySelectorAll(selector),
-    querySelector: () => new Element(),
-  };
+  const document = createDocument();
   const gua = {
     label: '本卦', name: '乾卦', sym_shang: '☰', sym_xia: '☰',
     color_shang: '#8b2500', color_xia: '#8b2500',

@@ -17,7 +17,7 @@
 
   let offset = 0;
   let hasMore = true;
-  let isLoading = false;
+  let activeLoad = null;
 
   function setStatus(element, message, type = '') {
     element.textContent = message;
@@ -83,11 +83,22 @@
     setStatus(status, '正在投笺……');
 
     try {
-      await API_CLIENT.createGuestbookReply(entry.id, {
-        nickname: nickname.value.trim() || '佚名',
-        content: text,
-      });
+      try {
+        await API_CLIENT.createGuestbookReply(entry.id, {
+          nickname: nickname.value.trim() || '佚名',
+          content: text,
+        });
+      } catch (error) {
+        setStatus(
+          status,
+          error?.message || '回复暂时无法投递，请稍后再试。',
+          'error',
+        );
+        return;
+      }
+
       form.reset();
+      setStatus(status, '');
       const refreshed = await loadEntries({reset: true});
       if (!refreshed) {
         setStatus(
@@ -96,12 +107,6 @@
           'error',
         );
       }
-    } catch (error) {
-      setStatus(
-        status,
-        error?.message || '回复暂时无法投递，请稍后再试。',
-        'error',
-      );
     } finally {
       controls.forEach(control => {
         control.disabled = false;
@@ -156,9 +161,7 @@
     status.className = 'reply-status';
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
-    form.addEventListener('submit', event => {
-      submitReply(event, entry, form, status);
-    });
+    form.addEventListener('submit', event => submitReply(event, entry, form, status));
     thread.append(form, status);
     return thread;
   }
@@ -225,24 +228,30 @@
     dom.entries.replaceChildren(empty);
   }
 
-  async function loadEntries({reset = false} = {}) {
-    if (isLoading || (!reset && !hasMore)) return false;
-
-    isLoading = true;
-    dom.loadMore.disabled = true;
-    if (reset) {
-      offset = 0;
-      hasMore = true;
-      dom.entries.replaceChildren();
-      setStatus(dom.wallStatus, '正在载入笺文……');
-    } else {
-      setStatus(dom.wallStatus, '正在载入后续笺文……');
+  function loadEntries({reset = false} = {}) {
+    if (activeLoad) {
+      // 投笺后的刷新等待当前加载结束，不能被分页加载直接跳过。
+      return reset
+        ? activeLoad.then(() => loadEntries({reset: true}))
+        : Promise.resolve(false);
     }
+    if (!reset && !hasMore) return Promise.resolve(false);
+
+    activeLoad = fetchEntries({reset}).finally(() => {
+      activeLoad = null;
+    });
+    return activeLoad;
+  }
+
+  async function fetchEntries({reset}) {
+    const requestedOffset = reset ? 0 : offset;
+    dom.loadMore.disabled = true;
+    setStatus(dom.wallStatus, reset ? '正在载入笺文……' : '正在载入后续笺文……');
 
     try {
       const payload = await API_CLIENT.fetchGuestbook({
         limit: PAGE_SIZE,
-        offset,
+        offset: requestedOffset,
       });
       const entries = Array.isArray(payload?.entries) ? payload.entries : [];
 
@@ -253,10 +262,13 @@
         entries.forEach(entry => {
           fragment.appendChild(createEntryElement(entry));
         });
-        dom.entries.appendChild(fragment);
+
+        // 刷新成功后才替换旧列表，失败时保留笺文和原有分页进度。
+        if (reset) dom.entries.replaceChildren(fragment);
+        else dom.entries.appendChild(fragment);
       }
 
-      offset += entries.length;
+      offset = requestedOffset + entries.length;
       hasMore = entries.length === PAGE_SIZE;
       dom.loadMore.hidden = !hasMore;
       setStatus(dom.wallStatus, '');
@@ -269,7 +281,6 @@
       );
       return false;
     } finally {
-      isLoading = false;
       dom.loadMore.disabled = false;
     }
   }
