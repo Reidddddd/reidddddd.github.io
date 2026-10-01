@@ -67,7 +67,7 @@
     const reader = makeReader([
       'event: heartbeat\ndata: ""\n\nevent: progress\ndata: 第一行',
       '\ndata: 第二行\n\n',
-      'event: done\ndata: {}\n\n',
+      'event: done\ndata: ""\n\n',
     ]);
     const originalFetch = global.fetch;
     let requestUrl = '';
@@ -103,7 +103,7 @@
     assertEqual(requestOptions.body, '{"question":"测试"}', 'SSE 请求体错误');
     assertDeepEqual(
       events,
-      [['heartbeat', ''], ['progress', '第一行\n第二行'], ['done', '{}']],
+      [['heartbeat', '""'], ['progress', '第一行\n第二行'], ['done', '""']],
       'SSE 事件解析错误',
     );
     assert(reader.wasReleased(), 'SSE 读取器没有释放');
@@ -132,10 +132,12 @@
       ['hexagrams', hexagramsPayload],
       ['progress', '正在解卦，请稍候……'],
       ['heartbeat', ''],
+      ['thinking', '正在深入分析卦象……'],
       ['yi_li_chunk', '专业片段'],
+      ['progress', '正在整理白话解读……'],
       ['result_chunk', '白话片段'],
-      ['result', {html: '<p>白话结果</p>'}],
-      ['yi_li', {html: '<p>专业结果</p>'}],
+      ['result', '<p>白话结果</p>'],
+      ['yi_li', '<p>专业结果</p>'],
       ['done', ''],
     ];
     const streamText = expectedEvents
@@ -351,8 +353,8 @@
         fixture.dom.btnSaveResult.disabled,
         '流式结果未完成时保存按钮不应可用',
       );
-      result.renderResult({html: '<p>白话</p>'});
-      result.setYiLi({html: '<p>易理</p>'});
+      result.renderResult('<p>白话</p>');
+      result.setYiLi('<p>易理</p>');
       result.revealCompleteResultTabs();
 
       assert(

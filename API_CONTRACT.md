@@ -49,17 +49,18 @@
 
 ## SSE 响应
 
-两个 POST 接口返回 `text/event-stream`。`data` 是 JSON 编码的字符串、对象或数组。
+两个 POST 接口返回 `text/event-stream`。以下事件的 `data` 是 JSON 编码的字符串或对象；
+前端先做 JSON 解码，再交给对应的展示逻辑。
 
 | 事件 | data | 说明 |
 | --- | --- | --- |
 | `progress` | 字符串 | 当前处理状态 |
 | `thinking` | 字符串 | 推理状态提示，不传输原始思维内容 |
 | `hexagrams` | `{ "guas": [...] }` | 五个卦的展示数据；每项含 `label`、`name`、`sym_shang`、`sym_xia`、`color_shang`、`color_xia`，可带 `zhou_yi` |
-| `yi_li_chunk` | Markdown 字符串 | 专业解读增量；前端累积后统一清洗 |
-| `result_chunk` | Markdown 字符串 | 白话解读增量；前端累积后统一清洗 |
-| `result` | `{ "html": "..." }` | 白话解读完整安全 HTML |
-| `yi_li` | `{ "html": "..." }` | 专业解读完整安全 HTML |
+| `yi_li_chunk` | Markdown 字符串 | 专业解读增量；前端累积后作为文本展示 |
+| `result_chunk` | Markdown 字符串 | 白话解读增量；前端累积后作为文本展示 |
+| `result` | HTML 字符串 | 白话解读完整安全 HTML，不包在 `html` 字段中 |
+| `yi_li` | HTML 字符串 | 专业解读完整安全 HTML，不包在 `html` 字段中 |
 | `heartbeat` | 空字符串 | 保活事件，前端可以忽略 |
 | `done` | 空字符串 | 流正常结束；前端只有收到它才视为完整结果 |
 | `error` | 字符串 | 流式处理失败或限流提示 |
@@ -69,7 +70,24 @@
 - 起卦：`progress` → `hexagrams` → `done`
 - 解卦：`progress` → `hexagrams` → `progress` → 增量事件 → `result` → `yi_li` → `done`
 - `heartbeat` 可以插入任意两个事件之间。
-- 正式解卦失败时会降级为 `result` → `done`，此时可能没有 `yi_li`。
+- 推理期间可以发送 `thinking`，切换白话解读时可以发送额外的 `progress`；没有正文分片时也可直接返回完整结果。
+- 正式解卦在排盘成功后失败，会保留已发出的卦象及分片，再以降级 `result` → `done` 结束，此时没有 `yi_li`。
+- 流内 `error` 表示失败，不能当作完整结果；传输结束但没有 `done` 也按连接中断处理。
+
+例如，完整白话结果在线路上的形式是：
+
+```text
+event: result
+data: "<p>白话结果</p>"
+
+event: done
+data: ""
+
+```
+
+流可能在任意字节位置分片，包括中文字符内部；读取端须增量解码 UTF-8，并以空行组装事件，
+不能把一次网络读取当作一个完整事件。增量 Markdown 只能作为文本展示，不直接写入 `innerHTML`；
+完整 `result`／`yi_li` 已由后端转换并清洗为安全 HTML。心跳不代表解读完成。
 
 ## HTTP 错误
 

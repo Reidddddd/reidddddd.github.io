@@ -85,6 +85,10 @@ node --check tests/browser-tests.js
 
 GitHub Actions 会在 `pisces` 分支的 push 和 Pull Request 上运行同一套 `make check`。
 
+`make check` 还会运行 `tests/*.test.cjs` 的 Node 回归测试。SSE 契约测试使用实际 API 客户端
+和结果模块，覆盖中文按字节分片、字符串 HTML 结果、降级、限流、流内错误及缺少 `done`；
+不会请求真实 API 或调用模型。
+
 浏览器模块测试页面：
 
 ```text
