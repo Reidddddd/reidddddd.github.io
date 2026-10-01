@@ -9,3 +9,4 @@ check:
 	node --check app.js
 	node --check guestbook.js
 	node --check tests/browser-tests.js
+	node --test tests/app-snapshot.test.cjs

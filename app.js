@@ -704,11 +704,11 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
   lunarPicker.initialize();
 
   // API 请求
-  const apiBody = () => JSON.stringify({
+  const apiBody = castSnapshot => JSON.stringify({
     cast_mode: castState.mode,
-    numbers: activeNumbers(),
-    question: dom.question.value.trim(),
-    wai_ying: dom.waiying.value.trim(),
+    numbers: castSnapshot.numbers,
+    question: castSnapshot.question,
+    wai_ying: castSnapshot.waiYing,
   });
 
   function requestErrorStatus(error) {
@@ -830,11 +830,12 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
         if (!randomReady || !isActiveOperation(operation)) return;
       }
 
-      jieGuaResult.setCastSnapshot(makeCastSnapshot());
+      const castSnapshot = makeCastSnapshot();
+      jieGuaResult.setCastSnapshot(castSnapshot);
 
       await runSSERequest(
         '/api/qi-gua',
-        apiBody(),
+        apiBody(castSnapshot),
         (event, raw) => {
           if (isActiveOperation(operation)) handleQiGua(event, raw);
         },
@@ -1031,9 +1032,12 @@ const {JieGuaResult} = JIE_GUA_RESULT_MODULE;
 
     try {
       beginJieGua();
+      // 请求与保存报告共用当次输入，避免保留起卦时的旧问题和外应。
+      const castSnapshot = makeCastSnapshot();
+      jieGuaResult.setCastSnapshot(castSnapshot);
       await runSSERequest(
         '/api/jie-gua',
-        apiBody(),
+        apiBody(castSnapshot),
         (event, raw) => {
           if (isActiveOperation(operation)) handleJieGua(event, raw);
         },
