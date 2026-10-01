@@ -1,6 +1,7 @@
 (function (global) {
   const API_CLIENT = global.MYHS_API_CLIENT;
   const CAST_STATE = global.MYHS_CAST_STATE;
+  const LUNAR_PICKER = global.MYHS_LUNAR_PICKER;
   const HEXAGRAM_RENDERER = global.MYHS_HEXAGRAM_RENDERER;
   const JIE_GUA_RESULT = global.MYHS_JIE_GUA_RESULT;
   const dom = {
@@ -12,6 +13,7 @@
     ['SSE 客户端解析分片、多行 data 与注释', testSSEClient],
     ['前后端 SSE 事件与 payload 契约', testSSEContract],
     ['起卦状态覆盖四种模式', testCastModes],
+    ['浏览月份或年份后调整时分保留已选日期', testLunarDateSelection],
     ['解卦结果标签切换与保存状态', testResultTabs],
   ];
   let isRunning = false;
@@ -223,6 +225,53 @@
     assert(!custom.setCustomValue('shang', 1), '忙碌时仍允许修改起卦输入');
     assert(!custom.canCast({question: '忙碌问题'}), '忙碌时仍允许起卦');
     custom.setBusy(false);
+  }
+
+  // 农历日期与浏览月份相互独立
+  function testLunarDateSelection() {
+    const picker = new LUNAR_PICKER.LunarPicker({
+      document,
+      dom: {
+        hourScroll: document.createElement('div'),
+        minuteScroll: document.createElement('div'),
+      },
+      isLocked: () => false,
+    });
+    const cases = [
+      {selected: [2026, 0, 31], displayed: [2026, 1]},
+      {selected: [2024, 1, 29], displayed: [2025, 1]},
+      {selected: [2026, 11, 31], displayed: [2027, 0]},
+      {selected: [2026, 8, 16], displayed: [2026, 8]},
+    ];
+
+    for (const {selected, displayed} of cases) {
+      picker.lunarPickerDate = new Date(...selected, 12, 0);
+      picker.lunarPickerHour = 12;
+      picker.lunarPickerMinute = 0;
+      picker.lunarPickerFollowsNow = true;
+      [picker.calendarYear, picker.calendarMonth] = displayed;
+
+      // 只模拟滚轮选中项的几何计算，保留真实的时间更新流程。
+      picker.closestTimeItem = () => ({value: 21, cycle: 2});
+      picker.onTimeScroll('hour');
+      assertEqual(picker.readSolarDateTime().getHours(), 21, '小时未更新');
+      picker.closestTimeItem = () => ({value: 10, cycle: 2});
+      picker.onTimeScroll('minute');
+
+      const date = picker.readSolarDateTime();
+      assertDeepEqual(
+        [date.getFullYear(), date.getMonth(), date.getDate()],
+        selected,
+        '调整时分改变了已选日期',
+      );
+      assertDeepEqual([date.getHours(), date.getMinutes()], [21, 10], '时分未更新');
+      assertDeepEqual(
+        [picker.calendarYear, picker.calendarMonth],
+        displayed,
+        '调整时分改变了浏览月份',
+      );
+      assert(!picker.lunarPickerFollowsNow, '手动调整时分后仍跟随当前时间');
+    }
   }
 
   // 解卦结果测试

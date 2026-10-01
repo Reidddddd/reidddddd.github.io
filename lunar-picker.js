@@ -181,13 +181,8 @@
     }
 
     updateLunarPickerDateFromScroll() {
-      this.lunarPickerDate = new Date(
-        this.calendarYear,
-        this.calendarMonth,
-        this.lunarPickerDate.getDate(),
-        this.lunarPickerHour,
-        this.lunarPickerMinute,
-      );
+      // 浏览月份不等于选中日期；调整时分只更新已选日期的时间。
+      this.lunarPickerDate = this.readSolarDateTime();
       if (!this.timeScrollBusy) this.lunarPickerFollowsNow = false;
     }
 
