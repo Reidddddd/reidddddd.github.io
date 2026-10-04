@@ -59,7 +59,21 @@ GitHub Pages 页面使用 `test` 配置。
 
 完整请求、响应和 SSE 事件定义见 [API_CONTRACT.md](API_CONTRACT.md)。契约变更时，必须同步更新后端仓库的契约文档、测试和接口实现。
 
-页面脚本按 `api-config.js`、`api-client.js`、`cast-state.js`、`lunar-picker.js`、`hexagram-renderer.js`、`jie-gua-result.js`、`app.js` 顺序加载。
+页面脚本按以下顺序加载，`cast-request-controller.js` 使用动画模块的可取消等待：
+
+```text
+api-config.js → api-client.js → cast-state.js → lunar-picker.js
+→ hexagram-renderer.js → jie-gua-result.js → cast-animations.js
+→ cast-request-controller.js → app.js
+```
+
+主页控制按职责拆分：
+
+- `app.js`：组装模块、绑定输入和重起事件，处理农历数据与布局同步。
+- `cast-animations.js`：随机数滚动、背景旋转与可取消的展示等待。
+- `cast-request-controller.js`：起卦／解卦请求、操作身份、取消、SSE 事件和结果收尾。
+
+起卦业务状态仍只有 `CastStateMachine` 一份；结果、标签与保存继续由 `JieGuaResult` 管理。
 
 错误展示按响应类型区分：HTTP 4xx 显示请求错误，限流显示次数提示，SSE `error` 显示服务处理失败，网络失败或流提前结束显示连接状态；DeepSeek 失败沿用后端返回的降级结果提示。
 
@@ -71,7 +85,7 @@ GitHub Pages 页面使用 `test` 配置。
 make check
 ```
 
-当前检查会执行七个前端脚本的语法检查：
+当前检查会执行以下脚本的语法检查：
 
 ```bash
 node --check api-client.js
@@ -79,7 +93,10 @@ node --check cast-state.js
 node --check lunar-picker.js
 node --check hexagram-renderer.js
 node --check jie-gua-result.js
+node --check cast-animations.js
+node --check cast-request-controller.js
 node --check app.js
+node --check guestbook.js
 node --check tests/browser-tests.js
 ```
 
@@ -92,6 +109,11 @@ GitHub Actions 会在 `pisces` 分支的 push 和 Pull Request 上运行同一�
 时间滚轮回归测试运行实际 `LunarPicker`，仅模拟 DOM 节点与布局尺寸，覆盖选中边界、
 首尾循环、锁定、重置、当前时间跟随、隐藏后恢复和布局变化；同时检查滚动期间的节点查询、
 几何读取与高亮操作数量。它不替代真实浏览器的视觉或惯性滚动验证。
+
+主页流程回归按 `index.html` 的实际脚本顺序运行页面代码，覆盖四种起卦模式、输入快照、
+重起确认与取消、迟到响应、增量和最终结果、降级、错误提示、标签与保存、背景收尾及布局同步。
+动画测试另外使用可控的计时器和帧回调检查随机数边界与资源清理；这些测试模拟 DOM、网络和尺寸，
+不请求真实 API，也不替代真实浏览器的视觉验证。
 
 浏览器模块测试页面：
 

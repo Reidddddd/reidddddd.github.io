@@ -6,6 +6,8 @@ check:
 	node --check lunar-picker.js
 	node --check hexagram-renderer.js
 	node --check jie-gua-result.js
+	node --check cast-animations.js
+	node --check cast-request-controller.js
 	node --check app.js
 	node --check guestbook.js
 	node --check tests/browser-tests.js

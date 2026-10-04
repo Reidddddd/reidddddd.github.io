@@ -1,75 +1,7 @@
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const {createDocument} = require('./helpers/dom.cjs');
-
-const frontendRoot = path.resolve(__dirname, '..');
-
-function createPage() {
-  const document = createDocument();
-  const gua = {
-    label: '本卦', name: '乾卦', sym_shang: '☰', sym_xia: '☰',
-    color_shang: '#8b2500', color_xia: '#8b2500',
-    zhou_yi: {gua_ci: '元亨利贞。', tuan_zhuan: '大哉乾元。', xiang_zhuan: '天行健。', yao_ci: []},
-  };
-  const requests = [];
-  let finishRequest;
-  const context = vm.createContext({
-    document, console, AbortController, performance,
-    // 缩短纯展示延迟；保留异步时序和取消机制。
-    setTimeout: callback => setTimeout(callback, 0),
-    clearTimeout,
-    requestAnimationFrame: () => 0,
-    cancelAnimationFrame() {},
-    matchMedia: () => ({matches: true}),
-    addEventListener() {},
-    crypto: {getRandomValues: values => values.fill(0)},
-    MYHS_API_CLIENT: {
-      API_ERROR_KIND: {},
-      ApiRequestError: class extends Error {},
-      async fetchLunarData() {
-        return {json: async () => ({lunar_cast: {numbers: [2, 5, 1], minuteShu: 10}})};
-      },
-      async runSSERequest(requestPath, requestBody, handleEvent) {
-        requests.push({path: requestPath, body: JSON.parse(requestBody)});
-        if (requestPath === '/api/jie-gua') {
-          await new Promise((resolve, reject) => {
-            finishRequest = error => error ? reject(error) : resolve();
-          });
-        }
-        handleEvent('hexagrams', JSON.stringify({guas: [gua]}));
-        if (requestPath === '/api/jie-gua') {
-          handleEvent('result', JSON.stringify('<p>白话结果</p>'));
-          handleEvent('yi_li', JSON.stringify('<p>易理结果</p>'));
-        }
-        handleEvent('done', '""');
-      },
-    },
-    // 日期选择器已有独立回归测试，这里只提供页面初始化所需的接口。
-    MYHS_LUNAR_PICKER: {LunarPicker: class {
-      constructor(options) { this.options = options; }
-      initialize() { this.options.onRefresh(); }
-      readSolarDateTime() { return new Date(2026, 8, 16, 21, 10); }
-      formatSolarDateTime() { return '2026-09-16T21:10'; }
-      stopFollowingNow() {}
-    }},
-  });
-  context.window = context;
-  for (const file of ['cast-state.js', 'hexagram-renderer.js', 'jie-gua-result.js', 'app.js']) {
-    vm.runInContext(fs.readFileSync(path.join(frontendRoot, file), 'utf8'), context, {filename: file});
-  }
-
-  return {
-    context,
-    requests,
-    element: id => document.getElementById(id),
-    click: id => document.getElementById(id).events.get('click')(),
-    finishRequest: error => finishRequest(error),
-    savedHtml: () => vm.runInContext('jieGuaResult.buildSavedResultHtml()', context),
-  };
-}
+const {createPage} = require('./helpers/homepage.cjs');
 
 async function cast(page, mode) {
   vm.runInContext(`castState.setMode('${mode}')`, page.context);
