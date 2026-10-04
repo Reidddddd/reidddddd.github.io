@@ -2,6 +2,10 @@
   const TIME_LOOP_CYCLES = 5;
   const TIME_LOOP_MID = Math.floor(TIME_LOOP_CYCLES / 2);
 
+  function timeItemCenter(item) {
+    return item.offsetTop + item.offsetHeight / 2;
+  }
+
   // 农历日历与时间选择
   class LunarPicker {
     constructor({
@@ -35,6 +39,7 @@
       this.calendarYear = now.getFullYear();
       this.calendarMonth = now.getMonth();
       this.timeScrollBusy = false;
+      this.timeColumns = new Map();
       this.yearDropBase = this.calendarYear - 4;
     }
 
@@ -88,6 +93,7 @@
 
     // 时间滚轮
     buildTimeScrolls() {
+      this.timeColumns.clear();
       this.dom.hourScroll.innerHTML = this.buildTimeLoopItems(24, value => this.pad2(value));
       this.dom.minuteScroll.innerHTML = this.buildTimeLoopItems(60, value => this.pad2(value));
 
@@ -106,8 +112,24 @@
     }
 
     getTimeItemHeight() {
-      const item = this.dom.hourScroll.querySelector('.time-item');
+      const item = this.getTimeColumn(this.dom.hourScroll).items[0];
       return item ? item.offsetHeight : 28.8;
+    }
+
+    getTimeColumn(scroll) {
+      if (this.timeColumns.has(scroll)) return this.timeColumns.get(scroll);
+
+      // 只缓存节点；几何尺寸仍实时读取，适应字体、窗口和显隐变化。
+      const items = Array.from(scroll.querySelectorAll('.time-item'));
+      const itemsByValue = new Map();
+      for (const item of items) {
+        const value = Number(item.dataset.value);
+        if (!itemsByValue.has(value)) itemsByValue.set(value, []);
+        itemsByValue.get(value).push(item);
+      }
+      const column = {items, itemsByValue, activeValue: null};
+      this.timeColumns.set(scroll, column);
+      return column;
     }
 
     setTimeScrollTo(hour, minute) {
@@ -119,7 +141,8 @@
     }
 
     scrollTimeColumnTo(scroll, value) {
-      const item = scroll.querySelector(`[data-cycle="${TIME_LOOP_MID}"][data-value="${value}"]`);
+      // 同值节点按循环顺序排列，直接取中间轮，避免再次查询 DOM。
+      const item = this.getTimeColumn(scroll).itemsByValue.get(value)?.[TIME_LOOP_MID];
       if (!item || !item.offsetHeight || !scroll.clientHeight) {
         scroll.scrollTop = value * this.getTimeItemHeight();
         return;
@@ -146,22 +169,29 @@
     }
 
     closestTimeItem(scroll) {
-      const items = Array.from(scroll.querySelectorAll('.time-item'));
+      const {items} = this.getTimeColumn(scroll);
+      if (!items.length) return {value: 0, cycle: TIME_LOOP_MID};
+      // 隐藏时各项尺寸为零，沿用原扫描顺序选第一项。
+      if (!items[0].offsetHeight) {
+        return {value: Number(items[0].dataset.value), cycle: Number(items[0].dataset.cycle)};
+      }
+
       const center = scroll.scrollTop + scroll.clientHeight / 2;
-      let closest = {value: 0, cycle: TIME_LOOP_MID};
-      let closestDistance = Infinity;
-      items.forEach(item => {
-        const itemCenter = item.offsetTop + item.offsetHeight / 2;
-        const distance = Math.abs(itemCenter - center);
-        if (distance < closestDistance) {
-          closestDistance = distance;
-          closest = {
-            value: Number(item.dataset.value),
-            cycle: Number(item.dataset.cycle),
-          };
-        }
-      });
-      return closest;
+      let start = 0;
+      let end = items.length - 1;
+      // 条目按纵向位置排列，找到中心下方的首项，再与上一项比较。
+      while (start < end) {
+        const middle = Math.floor((start + end) / 2);
+        if (timeItemCenter(items[middle]) < center) start = middle + 1;
+        else end = middle;
+      }
+      const before = items[Math.max(0, start - 1)];
+      const after = items[start];
+      // 距离相等时选前一项，保持原扫描的边界行为。
+      const beforeDistance = Math.abs(timeItemCenter(before) - center);
+      const afterDistance = Math.abs(timeItemCenter(after) - center);
+      const closest = beforeDistance <= afterDistance ? before : after;
+      return {value: Number(closest.dataset.value), cycle: Number(closest.dataset.cycle)};
     }
 
     normalizeTimeLoop(scroll, current) {
@@ -172,12 +202,21 @@
     }
 
     updateTimeActiveItems() {
-      this.dom.hourScroll.querySelectorAll('.time-item').forEach(item => {
-        item.classList.toggle('is-active', Number(item.dataset.value) === this.lunarPickerHour);
-      });
-      this.dom.minuteScroll.querySelectorAll('.time-item').forEach(item => {
-        item.classList.toggle('is-active', Number(item.dataset.value) === this.lunarPickerMinute);
-      });
+      this.updateTimeActiveColumn(this.dom.hourScroll, this.lunarPickerHour);
+      this.updateTimeActiveColumn(this.dom.minuteScroll, this.lunarPickerMinute);
+    }
+
+    updateTimeActiveColumn(scroll, value) {
+      const column = this.getTimeColumn(scroll);
+      if (column.activeValue === value) return;
+
+      for (const item of column.itemsByValue.get(column.activeValue) || []) {
+        item.classList.remove('is-active');
+      }
+      for (const item of column.itemsByValue.get(value) || []) {
+        item.classList.add('is-active');
+      }
+      column.activeValue = value;
     }
 
     updateLunarPickerDateFromScroll() {
