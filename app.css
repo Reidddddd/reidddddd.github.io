@@ -1,33 +1,8 @@
-/* 主题变量 */
-:root {
-    --bg: #f5f0e8;
-    --card: rgba(255, 254, 249, 0.65);
-    --border: #d4c8b0;
-    --text: #3d3226;
-    --text-soft: #5f5146;
-    --text-dim: #8b7d6b;
-    --accent: #8b2500;
-    --accent-light: #c75b3a;
-    --tile-bg: #faf7f0;
-    --tile-hover: #f0e6d2;
-    --tile-selected: #8b2500;
-    --tile-selected-text: #fff;
-    --placeholder: #c0b8a8;
-    --tag-bg: #fef5f0;
-    --tag-border: #f0d0b8;
-    --shadow: 0 1px 8px rgba(0,0,0,0.05);
-  }
-
-  /* 全局基础 */
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html { min-height: 100%; overflow-y: auto; font-size: 16px; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  /* 主页滚动：留言页保留自己的滚动行为 */
+  html { overflow-y: auto; }
 
   body {
-    font-family: "PingFang SC", "Noto Serif SC", "Source Han Serif SC", "Hiragino Mincho Pro", "Songti SC", serif;
-    background:
-      radial-gradient(ellipse at 50% 30%, #faf6ec 0%, #efe8d6 60%, #e0d8c0 100%);
-    color: var(--text); min-height: 100vh; min-height: 100dvh; padding: 2.3rem 0.8rem;
-    overflow-x: hidden; overflow-y: auto;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
 
@@ -43,24 +18,13 @@
     gap: 0.8rem;
   }
   .header p { min-width: 0; }
-  .header p,
-  .support-link {
-    color: var(--text-dim); font-family: inherit; font-size: 0.9rem; font-weight: 400;
-    line-height: 1.2; letter-spacing: 0;
-  }
+
   .header-action {
     flex-shrink: 0; text-align: right;
   }
   .support-link {
     display: block; padding: 0; text-decoration: none;
   }
-  .footer-link {
-    color: var(--accent); font-weight: 700; text-decoration: underline;
-    text-decoration-color: rgba(139, 37, 0, 0.35);
-    text-decoration-thickness: 1px;
-    text-underline-offset: 0.16rem;
-  }
-  .footer-link:hover { color: #7a1f00; text-decoration-color: rgba(139, 37, 0, 0.65); }
 
   .main-row {
     display: grid;
@@ -70,8 +34,7 @@
     align-items: flex-start;
   }
 
-  /* 通用卡片 */
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); }
+  /* 主页卡片与分栏 */
   .card-padded { padding: 0.7rem; }
 
   .left-col { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
@@ -83,13 +46,6 @@
   /* 输入区 */
   .input-section { display: flex; flex-direction: column; gap: 0.45rem; }
   .input-group { display: flex; flex-direction: column; gap: 0.2rem; }
-  .input-group label { font-size: 0.9rem; font-weight: 600; color: var(--text-soft); }
-  .input-group input {
-    font-family: inherit; font-size: 0.95rem; padding: 0.4rem 0.55rem;
-    border: 1.5px solid var(--border); border-radius: 6px;
-    background: var(--tile-bg); color: var(--text); outline: none;
-  }
-  .input-group input:focus { border-color: var(--accent-light); }
   .selected-nums { font-size: 1.1rem; font-weight: 700; color: var(--accent); min-height: 1.6rem; }
 
   /* 起卦公共区 */
@@ -355,13 +311,8 @@
   .cast-summary .selected-nums { min-width: 5rem; text-align: right; }
 
   .btn-row { display: flex; gap: 0.4rem; }
-  .btn {
-    font-family: inherit; font-size: 0.95rem; font-weight: 600;
-    padding: 0.42rem 1rem; border: none; border-radius: 6px;
-    cursor: pointer; letter-spacing: 0.04em; transition: all 0.15s;
-  }
-  .btn-primary { flex: 1; background: var(--accent); color: #fff; }
-  .btn-primary:hover { background: #7a1f00; }
+  .btn { font-family: inherit; transition: all 0.15s; }
+  .btn-primary { flex: 1; }
   .btn-primary:disabled { background: #c0b0a0; cursor: not-allowed; }
   .btn-secondary { background: transparent; color: var(--text-dim); border: 1.5px solid var(--border); }
   .btn-secondary:hover { background: var(--tile-hover); }

@@ -19,7 +19,7 @@
   border-bottom: 0;
   border-radius: 7px 7px 0 0;
   padding: 0.38rem 0.78rem 0.45rem;
-  color: #8b7d6b;
+  color: var(--text-dim);
   font-size: 1.15rem;
   font-weight: 700;
   line-height: 1.2;
@@ -28,13 +28,13 @@
 }
 
 .site-tab:hover {
-  color: #8b2500;
+  color: var(--accent);
   background: rgba(250, 247, 240, 0.5);
 }
 
 .site-tab[aria-current="page"] {
   border-color: rgba(212, 200, 176, 0.9);
-  color: #8b2500;
+  color: var(--accent);
   background: rgba(255, 254, 249, 0.68);
 }
 
@@ -45,7 +45,7 @@
   bottom: -1px;
   left: 0.7rem;
   height: 2px;
-  background: #8b2500;
+  background: var(--accent);
 }
 
 @media (max-width: 460px) {

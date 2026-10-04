@@ -1,0 +1,125 @@
+/* 两页共用的配色与基础外观；页面布局留在各自样式表中。 */
+:root {
+  --bg: #f5f0e8;
+  --card: rgba(255, 254, 249, 0.65);
+  --border: #d4c8b0;
+  --text: #3d3226;
+  --text-soft: #5f5146;
+  --text-dim: #8b7d6b;
+  --accent: #8b2500;
+  --accent-light: #c75b3a;
+  --tile-bg: #faf7f0;
+  --tile-hover: #f0e6d2;
+  --tile-selected: #8b2500;
+  --tile-selected-text: #fff;
+  --placeholder: #c0b8a8;
+  --tag-bg: #fef5f0;
+  --tag-border: #f0d0b8;
+  --shadow: 0 1px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* 基础字体与页面底色 */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html {
+  min-height: 100%;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: "PingFang SC", "Noto Serif SC", "Source Han Serif SC", "Hiragino Mincho Pro", "Songti SC", serif;
+  background: radial-gradient(ellipse at 50% 30%, #faf6ec 0%, #efe8d6 60%, #e0d8c0 100%);
+  color: var(--text);
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 2.3rem 0.8rem;
+  overflow-x: hidden;
+}
+
+/* 卡片与输入框：只共享外观，不设置布局和尺寸约束。 */
+.card,
+.guestbook-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.header p,
+.support-link,
+.guestbook-heading p {
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.input-group label,
+.form-field label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.input-group input,
+.form-field input,
+.form-field textarea {
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 0.4rem 0.55rem;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  background: var(--tile-bg);
+  color: var(--text);
+  outline: none;
+}
+
+.input-group input:focus,
+.form-field input:focus,
+.form-field textarea:focus {
+  border-color: var(--accent-light);
+}
+
+/* 按钮的禁用状态和页面特有交互仍由各页定义。 */
+.btn,
+.submit-button {
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.42rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+
+.btn-primary,
+.submit-button {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover,
+.submit-button:hover:not(:disabled) {
+  background: #7a1f00;
+}
+
+/* 两种页脚链接只共用外观；网格位置与固定定位不能合并。 */
+.footer-link,
+.site-footer-link {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: rgba(139, 37, 0, 0.35);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16rem;
+}
+
+.footer-link:hover,
+.site-footer-link:hover {
+  color: #7a1f00;
+  text-decoration-color: rgba(139, 37, 0, 0.65);
+}
