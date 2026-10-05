@@ -303,12 +303,13 @@
 
     async interpret() {
       if (this.castState.inputLocked || !this.castState.hexReady) return;
+      // 请求与保存报告共用当次输入，避免保留起卦时的旧问题和外应。
+      const castSnapshot = this.makeCastSnapshot();
+      if (!castSnapshot.question) return;
       const operation = this.beginOperation();
 
       try {
         this.beginJieGua();
-        // 请求与保存报告共用当次输入，避免保留起卦时的旧问题和外应。
-        const castSnapshot = this.makeCastSnapshot();
         this.jieGuaResult.setCastSnapshot(castSnapshot);
         await this.apiClient.runSSERequest(
           '/api/jie-gua',

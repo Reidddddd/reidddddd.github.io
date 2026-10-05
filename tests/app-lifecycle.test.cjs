@@ -52,6 +52,30 @@ test('排盘后有效新增第三个数字，仍清除旧卦象并允许重新�
   assert.equal(page.element('btnQiGua').disabled, false);
 });
 
+test('起卦后空问题禁用解卦且不发请求，补回问题可继续解卦', async () => {
+  const page = createPage({manualRequests: true});
+  await prepareHexagrams(page);
+  for (const question of ['', '  \n\t ']) {
+    page.element('question').value = question;
+    page.element('question').events.get('input')();
+    assert.equal(page.element('btnJieGua').disabled, true);
+    // 夹具直接触发处理函数，额外验证请求入口不会绕过按钮校验。
+    await page.click('btnJieGua');
+    assert.equal(page.requests.length, 1);
+    assert.equal(page.element('question').disabled, false);
+    assert.equal(page.element('hexCols').style.display, 'flex');
+  }
+
+  page.element('question').value = ' 新问题 ';
+  page.element('question').events.get('input')();
+  assert.equal(page.element('btnJieGua').disabled, false);
+  const operation = page.click('btnJieGua');
+  assert.equal(page.requests[1].body.question, '新问题');
+  completeInterpretation(page, page.requests[1]);
+  await operation;
+  assert.equal(page.element('btnSaveResult').disabled, false);
+});
+
 function completeInterpretation(page, request, {withYiLi = true} = {}) {
   request.emit('hexagrams', {guas: [page.gua]});
   request.emit('result', '<p>白话结果</p>');

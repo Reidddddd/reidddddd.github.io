@@ -231,7 +231,7 @@ function renderActionButtons() {
   if (castState.hexReady) {
     dom.btnQiGua.disabled = true;
     dom.btnJieGua.style.display = '';
-    dom.btnJieGua.disabled = false;
+    dom.btnJieGua.disabled = !dom.question.value.trim();
     return;
   }
   if (castState.mode === 'random' && castState.randomCasting) {
