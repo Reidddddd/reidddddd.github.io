@@ -51,7 +51,7 @@ function createHarness(chunks, {status = 200, requestPath = '/api/jie-gua'} = {}
     }),
   });
   context.window = context;
-  for (const file of ['api-client.js', 'jie-gua-result.js']) {
+  for (const file of ['api-client.js', 'saved-report.js', 'jie-gua-result.js']) {
     vm.runInContext(fs.readFileSync(path.join(frontendRoot, file), 'utf8'), context, {filename: file});
   }
   const dom = {

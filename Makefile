@@ -5,6 +5,7 @@ check:
 	node --check cast-state.js
 	node --check lunar-picker.js
 	node --check hexagram-renderer.js
+	node --check saved-report.js
 	node --check jie-gua-result.js
 	node --check cast-animations.js
 	node --check cast-request-controller.js
