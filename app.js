@@ -177,8 +177,7 @@ for (let i = 1; i <= 49; i++) {
   const tile = Object.assign(document.createElement('div'), {className: 'number-tile', textContent: i});
   tile.dataset.value = i;
   tile.addEventListener('click', () => {
-    if (castState.inputLocked) return;
-    castState.addNumber(i);
+    if (castState.inputLocked || !castState.addNumber(i)) return;
     syncNumberTileStates();
     if (castState.hexReady) clearCastOutput();
     refresh();

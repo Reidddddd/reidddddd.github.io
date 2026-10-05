@@ -21,6 +21,37 @@ async function prepareHexagrams(page) {
   return request;
 }
 
+test('选满三个数字后，无效点击不会清除已排好的卦象', async () => {
+  const page = createPage({manualRequests: true});
+  chooseNumbers(page);
+  const tiles = page.element('numberGrid').querySelectorAll('.number-tile');
+  tiles[8].events.get('click')();
+  const operation = page.click('btnQiGua');
+  page.requests[0].emit('hexagrams', {guas: [page.gua]});
+  page.requests[0].emit('done', '');
+  page.requests[0].resolve();
+  await operation;
+  const selectedNumbers = page.element('selectedNums').textContent;
+
+  tiles[9].events.get('click')();
+  assert.equal(page.element('selectedNums').textContent, selectedNumbers);
+  assert.equal(page.element('hexCols').style.display, 'flex');
+  assert.equal(page.element('btnJieGua').disabled, false);
+  assert.equal(page.element('btnQiGua').disabled, true);
+
+});
+
+test('排盘后有效新增第三个数字，仍清除旧卦象并允许重新起卦', async () => {
+  const page = createPage({manualRequests: true});
+  await prepareHexagrams(page);
+  const tiles = page.element('numberGrid').querySelectorAll('.number-tile');
+  tiles[8].events.get('click')();
+  assert.equal(page.element('selectedNums').textContent, '3 7 9');
+  assert.equal(page.element('hexCols').style.display, 'none');
+  assert.equal(page.element('btnJieGua').disabled, true);
+  assert.equal(page.element('btnQiGua').disabled, false);
+});
+
 function completeInterpretation(page, request, {withYiLi = true} = {}) {
   request.emit('hexagrams', {guas: [page.gua]});
   request.emit('result', '<p>白话结果</p>');
