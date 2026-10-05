@@ -238,6 +238,11 @@
         minuteScroll: document.createElement('div'),
       },
       isLocked: () => false,
+      isLunarMode: () => true,
+      hasHexReady: () => false,
+      onHideLunarCastResult() {},
+      onRefresh() {},
+      onSyncLayout() {},
     });
     const cases = [
       {selected: [2026, 0, 31], displayed: [2026, 1]},

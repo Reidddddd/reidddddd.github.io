@@ -161,11 +161,14 @@
       const idx = current.value;
       const maxVal = which === 'hour' ? 23 : 59;
       const val = Math.max(0, Math.min(maxVal, idx));
+      const previousValue = which === 'hour' ? this.lunarPickerHour : this.lunarPickerMinute;
       if (which === 'hour') this.lunarPickerHour = val;
       else this.lunarPickerMinute = val;
       this.updateTimeActiveItems();
       this.updateLunarPickerDateFromScroll();
       this.normalizeTimeLoop(scroll, current);
+      // 同值滚动或循环复位不改变起卦时间，不应清除已有结果。
+      if (val !== previousValue) this.invalidateLunarCast();
     }
 
     closestTimeItem(scroll) {
@@ -322,6 +325,10 @@
       );
       this.lunarPickerFollowsNow = false;
       this.renderCalendar();
+      this.invalidateLunarCast();
+    }
+
+    invalidateLunarCast() {
       if (!this.isLunarMode()) return;
       if (this.hasHexReady()) this.onClearCastOutput();
       else this.onHideLunarCastResult();

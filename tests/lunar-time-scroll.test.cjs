@@ -4,6 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 const {createDocument} = require('./helpers/dom.cjs');
+const {createPage} = require('./helpers/homepage.cjs');
 
 const frontendRoot = path.resolve(__dirname, '..');
 
@@ -66,6 +67,9 @@ function createPicker() {
   const clock = {value: new Date(2026, 0, 31, 12, 5)};
   let locked = false;
   let revealed = false;
+  let hexReady = false;
+  let lunarMode = true;
+  const callbacks = [];
   class ClockDate extends Date {
     constructor(...args) {
       if (args.length) super(...args);
@@ -91,23 +95,26 @@ function createPicker() {
       calDays: document.createElement('div'),
     },
     isLocked: () => locked,
-    isLunarMode: () => true,
+    isLunarMode: () => lunarMode,
     isLunarCastRevealed: () => revealed,
-    hasHexReady: () => false,
-    onClearCastOutput() {},
-    onHideLunarCastResult() {},
-    onRefresh() {},
-    onSyncLayout() {},
+    hasHexReady: () => hexReady,
+    onClearCastOutput() { callbacks.push('clear'); hexReady = false; revealed = false; },
+    onHideLunarCastResult() { callbacks.push('hide'); revealed = false; },
+    onRefresh() { callbacks.push('refresh'); },
+    onSyncLayout() { callbacks.push('layout'); },
   });
   const flushFrames = () => {
     while (frames.length) frames.shift()();
   };
   picker.initialize();
   flushFrames();
+  callbacks.length = 0;
   return {
-    picker, hour, minute, clock, flushFrames,
+    picker, hour, minute, clock, flushFrames, callbacks,
     setLocked: value => { locked = value; },
     setRevealed: value => { revealed = value; },
+    setHexReady: value => { hexReady = value; },
+    setLunarMode: value => { lunarMode = value; },
   };
 }
 
@@ -155,6 +162,89 @@ test('滚轮初始化仍生成五轮时分，并居中选中当前时间', () =>
   assert.deepEqual({...picker.closestTimeItem(minute.scroll)}, {value: 5, cycle: 2});
   assertActive(hour, 12);
   assertActive(minute, 5);
+});
+
+test('农历起卦后改变小时或分钟，清除旧结果并刷新操作按钮与布局', () => {
+  for (const [which, count, value] of [['hour', 24, 21], ['minute', 60, 10]]) {
+    const page = createPicker();
+    page.setHexReady(true);
+    page.setRevealed(true);
+    selectItem(page[which], 2 * count + value);
+    page[which].scroll.events.get('scroll')();
+    assert.deepEqual(page.callbacks, ['clear', 'refresh', 'layout']);
+    assert.equal(page.picker.hasHexReady(), false);
+    assert.equal(page.picker.isLunarCastRevealed(), false);
+    assert.equal(page.picker.readSolarDateTime().getDate(), 31);
+  }
+});
+
+test('没有卦象时调整时间仍清除旧农历换算结果', () => {
+  const page = createPicker();
+  page.setRevealed(true);
+  selectItem(page.minute, 2 * 60 + 10);
+  page.minute.scroll.events.get('scroll')();
+  assert.deepEqual(page.callbacks, ['hide', 'refresh', 'layout']);
+  assert.equal(page.picker.isLunarCastRevealed(), false);
+});
+
+test('时间变更调用主页实际回调，清空农历缓存并要求重新起卦', async () => {
+  const page = createPage();
+  page.element('question').value = '此事如何';
+  page.selectMode('lunar');
+  await page.click('btnQiGua');
+  assert.equal(page.element('btnJieGua').disabled, false);
+  assert.notEqual(vm.runInContext('LUNAR_CAST', page.context), null);
+
+  const {picker, minute} = createPicker();
+  const options = vm.runInContext('lunarPicker.options', page.context);
+  for (const name of ['isLocked', 'isLunarMode', 'hasHexReady', 'onClearCastOutput',
+    'onHideLunarCastResult', 'onRefresh', 'onSyncLayout']) {
+    picker[name] = options[name];
+  }
+  selectItem(minute, 2 * 60 + 10);
+  minute.scroll.events.get('scroll')();
+
+  assert.equal(vm.runInContext('LUNAR_CAST', page.context), null);
+  assert.equal(vm.runInContext('castState.hexReady', page.context), false);
+  assert.equal(page.element('hexCols').style.display, 'none');
+  assert.equal(page.element('lunarCastResult').hidden, true);
+  assert.equal(page.element('btnJieGua').disabled, true);
+  assert.equal(page.element('btnQiGua').disabled, false);
+});
+
+test('相同时间、循环复位、程序定位和锁定滚动均不清除结果', () => {
+  const page = createPicker();
+  page.setHexReady(true);
+  page.setRevealed(true);
+  page.hour.scroll.events.get('scroll')();
+  selectItem(page.hour, 12);
+  page.hour.scroll.events.get('scroll')();
+  page.hour.scroll.events.get('scroll')();
+  page.flushFrames();
+  page.hour.scroll.events.get('scroll')();
+
+  page.picker.setTimeScrollTo(12, 5);
+  page.minute.scroll.events.get('scroll')();
+  page.flushFrames();
+  page.minute.scroll.events.get('scroll')();
+
+  page.setLocked(true);
+  selectItem(page.hour, 2 * 24 + 21);
+  page.hour.scroll.events.get('scroll')();
+  page.flushFrames();
+  assert.deepEqual(page.callbacks, []);
+  assert.equal(page.picker.hasHexReady(), true);
+  assert.equal(page.picker.isLunarCastRevealed(), true);
+});
+
+test('非农历模式调整时间不清除其它起卦模式的结果', () => {
+  const page = createPicker();
+  page.setLunarMode(false);
+  page.setHexReady(true);
+  selectItem(page.hour, 2 * 24 + 21);
+  page.hour.scroll.events.get('scroll')();
+  assert.deepEqual(page.callbacks, []);
+  assert.equal(page.picker.hasHexReady(), true);
 });
 
 test('所有循环位置、相邻边界和滚动范围外的选中项与原线性扫描一致', () => {
