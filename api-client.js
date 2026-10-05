@@ -162,7 +162,8 @@
       );
     }
     if (options?.signal?.aborted) throw createCancellationError();
-    assertApiContract(response);
+    // 代理错误页可能没有契约头；错误响应交给调用方按 HTTP 状态处理。
+    if (response.ok) assertApiContract(response);
     return response;
   }
 
