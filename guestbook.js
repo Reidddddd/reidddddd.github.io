@@ -18,6 +18,7 @@
   let offset = 0;
   let hasMore = true;
   let activeLoad = null;
+  let renderedEntryIds = new Set();
 
   function setStatus(element, message, type = '') {
     element.textContent = message;
@@ -254,13 +255,16 @@
         offset: requestedOffset,
       });
       const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+      const nextEntryIds = reset ? new Set() : new Set(renderedEntryIds);
 
       if (reset && entries.length === 0) {
         showEmptyState();
       } else {
         const fragment = document.createDocumentFragment();
         entries.forEach(entry => {
+          if (nextEntryIds.has(entry.id)) return;
           fragment.appendChild(createEntryElement(entry));
+          nextEntryIds.add(entry.id);
         });
 
         // 刷新成功后才替换旧列表，失败时保留笺文和原有分页进度。
@@ -268,6 +272,8 @@
         else dom.entries.appendChild(fragment);
       }
 
+      renderedEntryIds = nextEntryIds;
+      // 新笺会推动 offset 分页边界；去重只影响显示，不影响服务端偏移。
       offset = requestedOffset + entries.length;
       hasMore = entries.length === PAGE_SIZE;
       dom.loadMore.hidden = !hasMore;

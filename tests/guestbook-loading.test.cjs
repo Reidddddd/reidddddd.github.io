@@ -241,3 +241,86 @@ test('刷新为空列表后显示唯一空态，后续刷新可恢复正常分�
   page.reads[3].resolve({entries: []});
   assert.equal(await paging, true);
 });
+
+test('其他用户新增笺文使分页重叠时，仅追加新 ID 且按返回条数推进偏移', async () => {
+  const page = await loadedPage();
+  const previousEntries = page.entries();
+  const thread = previousEntries[19].querySelector('.reply-thread');
+  thread.hidden = false;
+  thread.querySelector('form').elements.content.value = '尚未投递的回复';
+
+  const paging = page.load();
+  assert.equal(page.reads[1].offset, 20);
+  page.reads[1].resolve({entries: makeEntries(20, 20)});
+  assert.equal(await paging, true);
+  assert.equal(page.entries().length, 39);
+  assert.deepEqual(page.entries().slice(0, 20), previousEntries);
+  assert.equal(thread.hidden, false);
+  assert.equal(thread.querySelector('form').elements.content.value, '尚未投递的回复');
+  assert.equal(page.element('guestbookLoadMore').hidden, false);
+
+  const nextPage = page.load();
+  assert.equal(page.reads[2].offset, 40, '偏移按服务返回条数推进，而不是新增节点数');
+  page.reads[2].resolve({entries: makeEntries(1, 40)});
+  assert.equal(await nextPage, true);
+  assert.equal(page.entries().length, 40);
+  assert.equal(page.element('guestbookLoadMore').hidden, true);
+});
+
+test('整页都是已显示的 ID 时仍推进分页，同一响应内部也不重复显示', async () => {
+  const page = await loadedPage();
+  let operation = page.load();
+  page.reads[1].resolve({entries: makeEntries()});
+  assert.equal(await operation, true);
+  assert.equal(page.entries().length, 20);
+  assert.equal(page.element('guestbookLoadMore').hidden, false);
+
+  operation = page.load();
+  assert.equal(page.reads[2].offset, 40);
+  const latest = makeEntries(1, 21)[0];
+  page.reads[2].resolve({entries: [latest, latest]});
+  assert.equal(await operation, true);
+  assert.equal(page.entries().length, 21);
+  assert.equal(page.entries()[20].querySelector('.entry-content').textContent, '笺文21');
+});
+
+test('刷新失败保留已显示 ID，刷新成功重新渲染相同 ID 的最新内容与回复', async () => {
+  const page = await loadedPage();
+  let operation = page.load({reset: true});
+  page.reads[1].reject(new Error('模拟刷新失败'));
+  assert.equal(await operation, false);
+
+  operation = page.load();
+  assert.equal(page.reads[2].offset, 20);
+  page.reads[2].resolve({entries: makeEntries(20, 20)});
+  assert.equal(await operation, true);
+  assert.equal(page.entries().length, 39);
+
+  operation = page.load({reset: true});
+  const latest = makeEntries();
+  latest[0].content = '刷新后的笺文';
+  latest[0].replies = [{nickname: '来客', content: '新回复', created_at: '2026-10-01T12:01:00Z'}];
+  page.reads[3].resolve({entries: latest});
+  assert.equal(await operation, true);
+  assert.equal(page.entries().length, 20);
+  assert.equal(page.entries()[0].querySelector('.entry-content').textContent, '刷新后的笺文');
+  assert.equal(page.entries()[0].querySelector('.reply-toggle').textContent, '1 条回复 · 展开');
+
+  operation = page.load();
+  assert.equal(page.reads[4].offset, 20);
+  page.reads[4].resolve({entries: makeEntries(1, 21)});
+  assert.equal(await operation, true);
+  assert.equal(page.entries().length, 21, '刷新后已移除的 ID 必须能再次载入');
+});
+
+test('刷新为空集后清除去重记录，原 ID 再出现时正常显示', async () => {
+  const page = await loadedPage();
+  let operation = page.load({reset: true});
+  page.reads[1].resolve({entries: []});
+  assert.equal(await operation, true);
+  operation = page.load({reset: true});
+  page.reads[2].resolve({entries: makeEntries(1)});
+  assert.equal(await operation, true);
+  assert.equal(page.entries().length, 1);
+  assert.equal(page.element('guestbookEntries').querySelectorAll('.empty-state').length, 0);
+});
